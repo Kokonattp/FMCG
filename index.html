@@ -923,10 +923,13 @@
             <span>ประวัติ</span>
         </div>
         
+        <!-- Settings menu hidden - URL is hardcoded -->
+        <!--
         <div class="menu-item" onclick="showPage('settings')">
             <i class="fas fa-sliders"></i>
             <span>ตั้งค่า</span>
         </div>
+        -->
 
         <button class="menu-toggle" onclick="toggleSidebar()">
             <i class="fas fa-angles-left"></i>
@@ -2865,23 +2868,21 @@
         // Global Variables
         let assetsData = [];
         let importData = [];
+        let customLocations = []; // สถานที่จาก Google Sheets
+        let locationCapacity = {}; // ความจุแต่ละสถานที่
         
         // ========================================
         // ========================================
         // 🔧 CONFIGURATION - ตั้งค่าระบบ
         // ========================================
         
-        // ⭐ ค่า Default (Hard-coded) - แก้ไขตรงนี้ให้ตรงกับของคุณ
-        // ใส่ค่าจริงตรงนี้แล้วระบบจะใช้งานได้ทันทีบนทุกเครื่อง ทุก Browser
-        let GOOGLE_APPS_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbxHgZvbc65Aw4ch-G7omxuks2SyUptnlXxSDOE0xSr9V8xIditomNshykTWAuH-BuVGwA/exec'; // ⚠️ ใส่ Apps Script URL ของคุณตรงนี้
-        let SHEETS_API_KEY = ''; // ⚠️ ใส่ Google Sheets API Key ของคุณตรงนี้
-        let SPREADSHEET_ID = '1o_Wpre0DNfh5XNIEiWR-8uI3zCDaYxCysI5utuDDkBI'; // ✅ ตั้งไว้แล้ว
+        // ⭐ ค่า Default (Hard-coded) - URL จาก Config Sheet
+        // ระบบจะใช้งานได้ทันทีบนทุกเครื่อง ทุก Browser โดยไม่ต้องตั้งค่า
+        let GOOGLE_APPS_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbxHgZvbc65Aw4ch-G7omxuks2SyUptnlXxSDOE0xSr9V8xIditomNshykTWAuH-BuVGwA/exec';
+        let SHEETS_API_KEY = ''; // ไม่จำเป็นสำหรับ Apps Script
+        let SPREADSHEET_ID = '1o_Wpre0DNfh5XNIEiWR-8uI3zCDaYxCysI5utuDDkBI';
         let USE_SHEETS_API = true;
         let SHEET_NAME = 'Assets';
-        
-        // 📝 ตัวอย่างการใส่ค่า:
-        // GOOGLE_APPS_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycby.../exec';
-        // SHEETS_API_KEY = 'AIzaSyBcDeFgHiJkLmNoPqRsTuVwXyZ1234567890';
         
         // โหลดการตั้งค่าจาก localStorage (ถ้ามีการแก้ไขในหน้าตั้งค่า)
         function loadConfig() {
@@ -3996,8 +3997,31 @@
             showLoading();
             
             try {
+                // 🔄 โหลดข้อมูลปัจจุบันจาก Google Sheets ก่อน
+                console.log('📥 กำลังโหลดข้อมูลปัจจุบันจาก Google Sheets...');
+                await loadFromGoogleSheets();
+                
+                // สร้าง Set ของ Serial Numbers ที่มีอยู่แล้ว
+                const existingSerials = new Set(
+                    assetsData
+                        .map(asset => asset.serial)
+                        .filter(serial => serial && serial.trim() !== '')
+                );
+                
+                let addedCount = 0;
+                let skippedCount = 0;
+                
                 // ตรวจสอบและเติมข้อมูลที่ขาด
-                const processedData = importData.map(asset => {
+                const processedData = importData.filter(asset => {
+                    // ✅ เช็ค Serial Number ไม่ซ้ำ
+                    if (asset.serial && asset.serial.trim() !== '') {
+                        if (existingSerials.has(asset.serial)) {
+                            console.log(`⚠️ ข้าม ${asset.name} - Serial Number ซ้ำ: ${asset.serial}`);
+                            skippedCount++;
+                            return false; // ข้ามรายการนี้
+                        }
+                    }
+                    
                     // ถ้าไม่มีราคาให้ใส่ 0
                     if (!asset.price || asset.price === '') {
                         asset.price = 0;
@@ -4008,33 +4032,54 @@
                         asset.status = 'สมบูรณ์';
                     }
                     
-                    // ถ้าไม่มีสถานที่ให้ใส่ "คลังสินค้าหลัก"
-                    if (!asset.location) {
-                        asset.location = 'คลังสินค้าหลัก - โซน A';
+                    // ✅ ถ้าไม่มีสถานที่ให้ใส่ "คลังสินค้าDC1"
+                    if (!asset.location || asset.location.trim() === '') {
+                        asset.location = 'คลังสินค้าDC1';
                     }
                     
+                    addedCount++;
+                    return true; // รายการนี้ผ่านการตรวจสอบ
+                }).map(asset => {
+                    // เพิ่ม timestamp
+                    asset.createdAt = new Date().toISOString();
                     return asset;
                 });
                 
-                // Add to local storage
-                assetsData = [...assetsData, ...processedData];
-                
-                // Save to Google Sheets if configured
-                if (sheetsConfig.webAppUrl) {
-                    await saveToGoogleSheets(processedData);
+                if (processedData.length === 0) {
+                    hideLoading();
+                    showNotification(`⚠️ ไม่มีข้อมูลใหม่ที่จะเพิ่ม (Serial Number ซ้ำทั้งหมด ${skippedCount} รายการ)`, 'warning');
+                    return;
                 }
                 
-                hideLoading();
-                showNotification(`✅ นำเข้าข้อมูล ${processedData.length} รายการสำเร็จ!`, 'success');
+                // Add to local data
+                assetsData = [...assetsData, ...processedData];
                 
+                // 🔥 บันทึกลง Google Sheets ทันที
+                console.log('📤 กำลังบันทึกข้อมูลลง Google Sheets...');
+                await saveToGoogleSheets();
+                console.log('✅ บันทึกลง Google Sheets สำเร็จ!');
+                
+                hideLoading();
+                
+                const message = skippedCount > 0 
+                    ? `✅ นำเข้าและบันทึก ${addedCount} รายการสำเร็จ! (ข้าม ${skippedCount} รายการที่ Serial Number ซ้ำ)`
+                    : `✅ นำเข้าและบันทึก ${addedCount} รายการสำเร็จ!`;
+                    
+                showNotification(message, 'success');
+                
+                // Reset import data
                 importData = [];
                 document.getElementById('previewSection').style.display = 'none';
                 document.getElementById('excelFile').value = '';
                 
+                // Update UI
                 updateDashboard();
+                renderAssetsTable();
                 showPage('assets');
+                
             } catch (error) {
                 hideLoading();
+                console.error('❌ เกิดข้อผิดพลาด:', error);
                 showNotification('❌ เกิดข้อผิดพลาด: ' + error.message, 'error');
             }
         }
@@ -4669,30 +4714,51 @@
         }
 
         // ==================== Location Management Functions ====================
-        let customLocations = [];
+        // customLocations ถูกประกาศไว้แล้วที่ด้านบนแล้ว
 
         // Load custom locations
-        function loadCustomLocations() {
-            // โหลดจาก Google Sheets
-            // ฟังก์ชันนี้จะถูกเรียกเมื่อโหลดหน้า
+        async function loadCustomLocations() {
+            // ✅ โหลดสถานที่จาก Google Sheets Locations Sheet
+            try {
+                const webAppUrl = sheetsConfig.webAppUrl || GOOGLE_APPS_SCRIPT_URL;
+                if (!webAppUrl) return;
+                
+                const response = await fetch(webAppUrl + '?action=getLocations');
+                if (!response.ok) {
+                    console.warn('⚠️ ไม่สามารถโหลด Locations จาก Sheets');
+                    return;
+                }
+                
+                const result = await response.json();
+                if (result.success && result.data) {
+                    // แปลงข้อมูลจาก Sheets
+                    customLocations = result.data.map(row => ({
+                        name: row['ชื่อสถานที่'] || row[0],
+                        capacity: row['ความจุสูงสุด'] || row[1] || 0,
+                        count: row['จำนวนทรัพย์สิน'] || row[2] || 0,
+                        custom: row['กำหนดเอง'] === 'ใช่' || row[3] === 'ใช่'
+                    })).filter(loc => loc.name);
+                    
+                    console.log('✅ โหลด Locations จาก Sheets:', customLocations.length, 'รายการ');
+                } else {
+                    console.warn('⚠️ ไม่พบข้อมูล Locations ใน Sheets');
+                    customLocations = [];
+                }
+            } catch (error) {
+                console.error('❌ Error loading locations:', error);
+                customLocations = [];
+            }
         }
 
-        // Get all locations (default + custom)
+        // Get all locations (from Sheets only - no hardcoded defaults)
         function getAllLocations() {
-            const defaultLocations = [
-                'คลังเก็บสินค้า',
-                'คลังบก',
-                'คลังสินค้าหลัก - โซน A',
-                'คลังสินค้าหลัก - โซน B',
-                'คลังสินค้าหลัก - โซน C',
-                'คลังสินค้ารอง',
-                'ศูนย์กระจายสินค้า'
-            ];
+            // ✅ ดึงสถานที่จาก Locations Sheet เท่านั้น
+            // ไม่ใช้ค่า default ที่ hardcode ไว้
             
             // เพิ่มสถานที่จากทรัพย์สินที่มีอยู่
             const locationsFromAssets = [...new Set(assetsData.map(a => a.location).filter(Boolean))];
             
-            // รวมกับ custom locations (ถ้ามี)
+            // รวมกับ custom locations จาก Locations Sheet (ถ้ามี)
             let customLocs = [];
             try {
                 if (typeof customLocations !== 'undefined' && Array.isArray(customLocations)) {
@@ -4702,10 +4768,12 @@
                 console.warn('⚠️ customLocations error:', error);
             }
             
-            // รวมทั้งหมดและเอาที่ซ้ำออก
-            const allLocations = [...new Set([...defaultLocations, ...locationsFromAssets, ...customLocs])];
+            // รวมทั้งหมดและเอาที่ซ้ำออก (ไม่มี default locations)
+            const allLocations = [...new Set([...locationsFromAssets, ...customLocs])];
             
-            return allLocations.sort((a, b) => a.localeCompare(b, 'th')); // เรียงตามตัวอักษรภาษาไทย
+            return allLocations.length > 0 
+                ? allLocations.sort((a, b) => a.localeCompare(b, 'th')) 
+                : ['คลังสินค้าDC1']; // ถ้าไม่มีเลย ให้แสดงแค่ DC1
         }
 
         // Update location dropdowns
@@ -4766,30 +4834,39 @@
                 return;
             }
 
-            // เพิ่มสถานที่ใหม่
-            const newLocation = {
-                id: 'LOC-' + new Date().getTime(),
-                name: name,
-                description: description,
-                createdAt: new Date().toISOString()
-            };
+            showLoading();
 
-            customLocations.push(newLocation);
+            try {
+                // เพิ่มสถานที่ใหม่
+                const newLocation = {
+                    id: 'LOC-' + new Date().getTime(),
+                    name: name,
+                    description: description,
+                    createdAt: new Date().toISOString()
+                };
 
-            // ถ้ามีความจุ ให้บันทึกด้วย
-            if (capacity && parseInt(capacity) > 0) {
-                locationCapacity[name] = parseInt(capacity);
+                customLocations.push(newLocation);
+
+                // ถ้ามีความจุ ให้บันทึกด้วย
+                if (capacity && parseInt(capacity) > 0) {
+                    locationCapacity[name] = parseInt(capacity);
+                }
+
+                // 🔥 บันทึกลง Google Sheets ทันที
+                await saveLocationToSheets(name, capacity || 0, { custom: true });
+                console.log('✅ บันทึกสถานที่ลง Google Sheets สำเร็จ');
+
+                hideLoading();
+                closeModal('addLocationModal');
+                updateLocationDropdowns();
+                updateLocationsPage();
+                showNotification(`✅ เพิ่มสถานที่ "${name}" สำเร็จ!`, 'success');
+                
+            } catch (error) {
+                hideLoading();
+                console.error('❌ เกิดข้อผิดพลาด:', error);
+                showNotification('❌ เกิดข้อผิดพลาดในการบันทึก: ' + error.message, 'error');
             }
-
-            // 🆕 Sync กับ Google Sheets
-            if (typeof syncLocationsToSheets === 'function') {
-                await syncLocationsToSheets();
-            }
-
-            closeModal('addLocationModal');
-            updateLocationDropdowns();
-            updateLocationsPage();
-            showNotification(`✅ เพิ่มสถานที่ "${name}" สำเร็จ!`, 'success');
         }
 
         // Open Manage Locations Modal
@@ -7029,16 +7106,22 @@
             
             // 🔄 โหลดข้อมูลจาก Google Sheets ทันที
             try {
+                // 1. โหลด Locations ก่อน
+                console.log('📍 กำลังโหลด Locations จาก Google Sheets...');
+                await loadCustomLocations();
+                
+                // 2. โหลดข้อมูล Assets
+                console.log('📦 กำลังโหลด Assets จาก Google Sheets...');
                 await loadFromGoogleSheets();
-                console.log('✅ โหลดข้อมูลสำเร็จ');
+                
+                // 3. อัพเดท Location Dropdowns
+                updateLocationDropdowns();
+                
+                console.log('✅ โหลดข้อมูลทั้งหมดสำเร็จ');
             } catch (error) {
                 console.error('❌ ไม่สามารถโหลดข้อมูลได้:', error);
-                showNotification('⚠️ กรุณาตั้งค่าการเชื่อมต่อ Google Sheets ที่หน้าตั้งค่า', 'warning');
+                showNotification('⚠️ ไม่สามารถโหลดข้อมูลจาก Google Sheets', 'warning');
             }
-            
-            // Load custom locations
-            loadCustomLocations();
-            updateLocationDropdowns();
             
             initDashboardCharts();
             updateDashboard();
