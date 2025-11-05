@@ -903,11 +903,6 @@
             <span>สถานที่เก็บ</span>
         </div>
         
-        <div class="menu-item" onclick="showPage('stock-count')">
-            <i class="fas fa-clipboard-check"></i>
-            <span>นับสตอค</span>
-        </div>
-        
         <div class="menu-item" onclick="showPage('maintenance')">
             <i class="fas fa-wrench"></i>
             <span>บำรุงรักษา</span>
@@ -2146,49 +2141,6 @@
                 </div>
             </div>
 
-            <!-- Trend Analysis -->
-            <div style="margin-top: 30px;">
-                <div class="chart-card">
-                    <h2 style="margin-bottom: 20px;">
-                        <i class="fas fa-chart-line"></i> แนวโน้มการเพิ่มทรัพย์สินรายเดือน
-                    </h2>
-                    <canvas id="trendChart" style="max-height: 300px;"></canvas>
-                </div>
-            </div>
-
-            <!-- Department Holdings by Month -->
-            <div style="margin-top: 30px;">
-                <h2 style="margin-bottom: 20px;">
-                    <i class="fas fa-building"></i> การถือครองทรัพย์สินรายเดือนแยกตามแผนก
-                </h2>
-                
-                <div class="charts-grid">
-                    <!-- Value by Department per Month -->
-                    <div class="chart-card">
-                        <h3><i class="fas fa-dollar-sign"></i> มูลค่าถือครองรายเดือน (แยกแผนก)</h3>
-                        <canvas id="departmentValueTrendChart" style="max-height: 350px;"></canvas>
-                        <div style="margin-top: 15px;">
-                            <small style="color: #666;">
-                                <i class="fas fa-info-circle"></i> 
-                                แสดงมูลค่าสะสมของทรัพย์สินในแต่ละแผนกตามช่วงเวลา
-                            </small>
-                        </div>
-                    </div>
-
-                    <!-- Quantity by Department per Month -->
-                    <div class="chart-card">
-                        <h3><i class="fas fa-boxes"></i> จำนวนถือครองรายเดือน (แยกแผนก)</h3>
-                        <canvas id="departmentCountTrendChart" style="max-height: 350px;"></canvas>
-                        <div style="margin-top: 15px;">
-                            <small style="color: #666;">
-                                <i class="fas fa-info-circle"></i> 
-                                แสดงจำนวนทรัพย์สินสะสมในแต่ละแผนกตามช่วงเวลา
-                            </small>
-                        </div>
-                    </div>
-                </div>
-            </div>
-
             <!-- Detailed Statistics Table -->
             <div style="margin-top: 30px;">
                 <div class="table-container">
@@ -2300,7 +2252,7 @@
 
                     <div class="form-group full-width">
                         <label>Google Apps Script Web App URL <span class="required">*</span></label>
-                        <input type="text" id="webAppUrl" placeholder="https://script.google.com/macros/s/AKfycbxUOSi10Dvuz6W98O33yT1PwVGEv2uZRljw8eGNXwfH1SwMjZMUksC-mab-cXJXNbTptg/exec">
+                        <input type="text" id="webAppUrl" placeholder="https://script.google.com/macros/s/AKfycbzoxLwmjTcQ5MiupsL3Vm5bdbm8igDNVbbq8yuTWn-23Uf3Svpdq5eEOKhPvvSNLLXmhA/exec">
                         <small style="color: #666; margin-top: 5px; display: block;">
                             <i class="fas fa-code"></i> 
                             Apps Script URL สำหรับบันทึกข้อมูล
@@ -2779,12 +2731,12 @@
             <div class="modal-body" style="padding: 30px;">
                 <p id="confirmMessage" style="font-size: 16px; line-height: 1.6; color: #333; margin: 0; white-space: pre-line;"></p>
             </div>
-            <div style="display: flex; gap: 15px; padding: 0 30px 30px 30px; justify-content: flex-end;">
+            <div style="display: flex; gap: 15px; padding: 0 30px 30px 30px; justify-content: center;">
                 <button class="btn btn-secondary" onclick="window.confirmCallback(false)" style="min-width: 120px;">
                     <i class="fas fa-times"></i> ยกเลิก
                 </button>
-                <button class="btn btn-danger" onclick="window.confirmCallback(true)" style="min-width: 120px;">
-                    <i class="fas fa-check"></i> ยืนยัน
+                <button class="btn btn-danger" onclick="window.confirmCallback(true)" style="min-width: 120px; background: linear-gradient(135deg, var(--danger) 0%, #dc2626 100%);">
+                    <i class="fas fa-check"></i> ตกลง
                 </button>
             </div>
         </div>
@@ -3329,10 +3281,7 @@
                     <td><span class="badge ${getStatusClass(asset.status)}">${asset.status}</span></td>
                     <td>${Number(asset.price).toLocaleString()}</td>
                     <td style="white-space: nowrap;">
-                        <button class="action-btn primary" onclick="showTransferModal(${index})" title="โอนย้าย">
-                            <i class="fas fa-exchange-alt"></i>
-                        </button>
-                        <button class="action-btn edit" onclick="editAsset('${asset.code}')" title="แก้ไข">
+                        <button class="action-btn edit" onclick="editAsset('${asset.code}')" title="แก้ไข" disabled style="opacity: 0.5; cursor: not-allowed;">
                             <i class="fas fa-edit"></i>
                         </button>
                         <button class="action-btn delete" onclick="deleteAsset('${asset.code}')" title="ลบ">
@@ -3446,97 +3395,6 @@
                 updateDashboard();
                 showPage('assets');
             }
-        }
-
-        // ✅ FIX 3: เพิ่มฟังก์ชัน editAsset ที่หายไป
-        function editAsset(assetCode) {
-            // ค้นหา asset จาก code
-            const asset = assetsData.find(a => a.code === assetCode);
-            
-            if (!asset) {
-                showNotification('❌ ไม่พบทรัพย์สิน: ' + assetCode, 'error');
-                return;
-            }
-            
-            // เติมข้อมูลลงในฟอร์มแก้ไข
-            document.getElementById('editAssetCode').value = asset.code || '';
-            document.getElementById('editAssetName').value = asset.name || '';
-            document.getElementById('editCategory').value = asset.category || '';
-            document.getElementById('editBrand').value = asset.brand || '';
-            document.getElementById('editModel').value = asset.model || '';
-            document.getElementById('editSerial').value = asset.serialNumber || asset.serial || '';
-            document.getElementById('editPurchaseDate').value = asset.purchaseDate || '';
-            document.getElementById('editPrice').value = asset.price || '';
-            document.getElementById('editLocation').value = asset.location || '';
-            document.getElementById('editDepartment').value = asset.department || '';
-            document.getElementById('editStatus').value = asset.status || 'สมบูรณ์';
-            document.getElementById('editDescription').value = asset.description || '';
-            
-            // เปิด modal แก้ไข
-            openModal('editAssetModal');
-        }
-        
-        // บันทึกการแก้ไข Asset
-        async function saveEditAsset() {
-            const code = document.getElementById('editAssetCode').value;
-            const name = document.getElementById('editAssetName').value;
-            const category = document.getElementById('editCategory').value;
-            const brand = document.getElementById('editBrand').value;
-            const model = document.getElementById('editModel').value;
-            const serial = document.getElementById('editSerial').value;
-            const purchaseDate = document.getElementById('editPurchaseDate').value;
-            const price = document.getElementById('editPrice').value;
-            const location = document.getElementById('editLocation').value;
-            const department = document.getElementById('editDepartment').value;
-            const status = document.getElementById('editStatus').value;
-            const description = document.getElementById('editDescription').value;
-            
-            if (!code || !name || !category) {
-                showNotification('❌ กรุณากรอกข้อมูลที่จำเป็น', 'error');
-                return;
-            }
-            
-            // หา index ของ asset
-            const index = assetsData.findIndex(a => a.code === code);
-            
-            if (index === -1) {
-                showNotification('❌ ไม่พบทรัพย์สิน', 'error');
-                return;
-            }
-            
-            // อัพเดทข้อมูล
-            assetsData[index] = {
-                ...assetsData[index],
-                code: code,
-                name: name,
-                category: category,
-                brand: brand,
-                model: model,
-                serialNumber: serial,
-                serial: serial,
-                purchaseDate: purchaseDate,
-                price: price,
-                location: location,
-                department: department,
-                status: status,
-                description: description,
-                updatedAt: formatThaiDateTime(new Date())
-            };
-            
-            showNotification('✅ แก้ไขทรัพย์สินสำเร็จ!', 'success');
-            
-            // Sync กับ Google Sheets
-            try {
-                await syncWithGoogleSheets();
-            } catch (error) {
-                console.error('Sync error:', error);
-                showNotification('⚠️ แก้ไขในระบบแล้ว แต่ไม่สามารถ Sync กับ Google Sheets ได้', 'warning');
-            }
-            
-            closeModal('editAssetModal');
-            renderAssetsTable();
-            updateDashboard();
-            updateLocationsPage();
         }
 
         // Delete Asset
@@ -3704,26 +3562,36 @@
             console.log('🔄 Populating dropdowns...');
             
             try {
-                // ✅ FIX 4: ดึง Locations จาก assetsData โดยตรง
-                const defaultLocations = [
-                    'คลังเก็บสินค้า',
-                    'คลังบก',
-                    'คลังสินค้าหลัก - โซน A',
-                    'คลังสินค้าหลัก - โซน B',
-                    'คลังสินค้าหลัก - โซน C',
-                    'คลังสินค้ารอง',
-                    'คลังสินค้าสำรองDC1',
-                    'ศูนย์กระจายสินค้า'
-                ];
+                // Locations - ใช้ getAllLocations() เพื่อรวมทุกสถานที่
+                let locations = [];
                 
-                // ดึงสถานที่จาก assetsData
-                const locationsFromAssets = [...new Set(assetsData.map(a => a.location).filter(Boolean))];
+                // ลอง getAllLocations() ถ้ามี
+                if (typeof getAllLocations === 'function') {
+                    try {
+                        locations = getAllLocations();
+                        console.log('✅ getAllLocations() returned:', locations.length, 'locations');
+                    } catch (error) {
+                        console.error('❌ getAllLocations() error:', error);
+                    }
+                }
                 
-                // รวมกัน
-                const locations = [...new Set([...defaultLocations, ...locationsFromAssets])].sort();
-                
-                console.log('✅ Total locations:', locations.length);
-                console.log('📍 Locations:', locations);
+                // ถ้าไม่มี locations ให้ใช้ default + จาก assets
+                if (!locations || locations.length === 0) {
+                    console.warn('⚠️ No locations from getAllLocations(), using fallback');
+                    const defaultLocations = [
+                        'คลังเก็บสินค้า',
+                        'คลังบก',
+                        'คลังสินค้าหลัก - โซน A',
+                        'คลังสินค้าหลัก - โซน B',
+                        'คลังสินค้าหลัก - โซน C',
+                        'คลังสินค้ารอง',
+                        'คลังสินค้าสำรองDC1',
+                        'ศูนย์กระจายสินค้า'
+                    ];
+                    const locationsFromAssets = [...new Set(assetsData.map(a => a.location).filter(Boolean))];
+                    locations = [...new Set([...defaultLocations, ...locationsFromAssets])].sort();
+                    console.log('✅ Fallback locations:', locations.length);
+                }
                 
                 const locationSelect = document.getElementById('newLocation');
                 
@@ -4815,18 +4683,13 @@
                         </tr>
                     `;
                 }
-                // ✅ FIX 1: Reset stats เป็น 0 เมื่อไม่มีข้อมูล
-                document.getElementById('totalLocations').textContent = '0';
-                document.getElementById('avgCapacity').textContent = '0%';
-                document.getElementById('totalAssetsInLocations').textContent = '0';
-                document.getElementById('fullLocations').textContent = '0';
                 return;
             }
 
-            // ✅ FIX 1: นับจาก assetsData เท่านั้น ไม่ใช้ getAllLocations() 
+            // 🔧 รวมทั้งสถานที่จาก assetsData และ customLocations
             const locationData = {};
             
-            // เพิ่มสถานที่จาก assetsData (สถานที่ที่มีทรัพย์สินจริงๆ)
+            // 1. เพิ่มสถานที่จาก assetsData (สถานที่ที่มีทรัพย์สิน)
             assetsData.forEach(asset => {
                 const loc = asset.location || 'ไม่ระบุ';
                 if (!locationData[loc]) {
@@ -4840,6 +4703,19 @@
                     locationData[loc].complete++;
                 }
             });
+            
+            // 2. เพิ่มสถานที่ทั้งหมดจาก getAllLocations (รวมสถานที่ว่าง)
+            if (typeof getAllLocations === 'function') {
+                const allLocations = getAllLocations();
+                allLocations.forEach(loc => {
+                    if (!locationData[loc]) {
+                        locationData[loc] = {
+                            total: 0,
+                            complete: 0
+                        };
+                    }
+                });
+            }
 
             // คำนวณสถิติ
             const totalLocations = Object.keys(locationData).length;
@@ -5029,7 +4905,7 @@
 
         // Get all locations (from Sheets only - no hardcoded defaults)
         function getAllLocations() {
-            // ✅ ดึงสถานที่จาก Locations Sheet เท่านั้น
+            // ✅ ดึงสถานที่จาก Locations Sheet และทรัพย์สินที่มีอยู่เท่านั้น
             // ไม่ใช้ค่า default ที่ hardcode ไว้
             
             // เพิ่มสถานที่จากทรัพย์สินที่มีอยู่
@@ -5048,9 +4924,10 @@
             // รวมทั้งหมดและเอาที่ซ้ำออก (ไม่มี default locations)
             const allLocations = [...new Set([...locationsFromAssets, ...customLocs])];
             
+            // คืน array ที่เรียงลำดับ หรือ array ว่างถ้าไม่มีข้อมูล
             return allLocations.length > 0 
                 ? allLocations.sort((a, b) => a.localeCompare(b, 'th')) 
-                : ['คลังสินค้าDC1']; // ถ้าไม่มีเลย ให้แสดงแค่ DC1
+                : []; // คืน array ว่างถ้าไม่มีสถานที่เลย
         }
 
         // Update location dropdowns
@@ -6352,38 +6229,12 @@
             return '฿' + value.toFixed(0);
         }
 
-        // ✅ FIX 2: แก้ปัญหา Format วันที่ - แสดง dd/mm/yyyy ให้ถูกต้อง
         function formatThaiDate(dateStr) {
-            if (!dateStr) return '-';
-            
-            try {
-                // ถ้าเป็น format dd/mm/yyyy HH:mm:ss อยู่แล้ว ให้ส่งคืนเฉพาะส่วนวันที่
-                if (typeof dateStr === 'string' && dateStr.includes('/') && dateStr.split('/').length === 3) {
-                    const parts = dateStr.split(' ')[0].split('/');
-                    if (parts.length === 3) {
-                        // Format: dd/mm/yyyy (รูปแบบไทย)
-                        return dateStr.split(' ')[0];
-                    }
-                }
-                
-                // แปลงเป็น Date object
-                const date = new Date(dateStr);
-                
-                // ตรวจสอบว่าเป็น valid date
-                if (isNaN(date.getTime())) {
-                    return dateStr; // คืนค่าเดิมถ้าแปลงไม่ได้
-                }
-                
-                // Format เป็น dd/mm/yyyy
-                const day = String(date.getDate()).padStart(2, '0');
-                const month = String(date.getMonth() + 1).padStart(2, '0');
-                const year = date.getFullYear();
-                
-                return `${day}/${month}/${year}`;
-            } catch (error) {
-                console.error('Error formatting date:', error, dateStr);
-                return String(dateStr);
-            }
+            const date = new Date(dateStr);
+            const day = date.getDate();
+            const month = date.getMonth() + 1;
+            const year = date.getFullYear();
+            return `${day}/${month}/${year}`;
         }
 
         // Load Data from Google Sheets
