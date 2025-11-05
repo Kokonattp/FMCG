@@ -3880,6 +3880,7 @@
             const file = event.target.files[0];
             if (!file) return;
             
+            console.log('📁 กำลังอ่านไฟล์:', file.name);
             showLoading();
             
             const reader = new FileReader();
@@ -3898,7 +3899,13 @@
                         defval: '' // ค่า default สำหรับ cell ว่าง
                     });
                     
-                    console.log('Raw data from Excel:', jsonData);
+                    console.log('📊 Raw data from Excel:', jsonData);
+                    console.log('📊 จำนวนแถว:', jsonData.length);
+                    
+                    // ✅ ตรวจสอบว่า jsonData เป็น array
+                    if (!Array.isArray(jsonData)) {
+                        throw new Error('ข้อมูลจาก Excel ไม่ถูกต้อง');
+                    }
                     
                     importData = jsonData.map((row, index) => {
                         // จัดการวันที่
@@ -3941,14 +3948,20 @@
                             createdAt: new Date().toISOString()
                         };
                         
-                        console.log(`Row ${index + 1}:`, asset);
+                        console.log(`✅ Row ${index + 1}:`, asset);
                         return asset;
                     });
+                    
+                    console.log('📦 importData after map:', importData);
+                    console.log('📦 importData length:', importData.length);
                     
                     // กรองเฉพาะที่มีข้อมูลสำคัญ
                     importData = importData.filter(asset => {
                         return asset.code || asset.name; // ต้องมีอย่างน้อยรหัสหรือชื่อ
                     });
+                    
+                    console.log('📦 importData after filter:', importData);
+                    console.log('📦 importData length after filter:', importData.length);
                     
                     hideLoading();
                     
@@ -3957,15 +3970,24 @@
                         return;
                     }
                     
+                    console.log('🎯 กำลังแสดง Preview...');
                     showPreview();
                     showNotification(`✅ อ่านไฟล์สำเร็จ! พบ ${importData.length} รายการ`, 'success');
                     
                 } catch (error) {
                     hideLoading();
-                    console.error('Import error:', error);
+                    console.error('❌ Import error:', error);
+                    console.error('❌ Error stack:', error.stack);
                     showNotification('❌ เกิดข้อผิดพลาด: ' + error.message, 'error');
                 }
             };
+            
+            reader.onerror = function(error) {
+                hideLoading();
+                console.error('❌ FileReader error:', error);
+                showNotification('❌ ไม่สามารถอ่านไฟล์ได้', 'error');
+            };
+            
             reader.readAsArrayBuffer(file);
         }
 
@@ -3974,15 +3996,27 @@
             document.getElementById('previewSection').style.display = 'block';
             const tbody = document.getElementById('previewTableBody');
             
+            // ✅ เช็คว่า importData มีค่าและเป็น array
+            if (!importData || !Array.isArray(importData) || importData.length === 0) {
+                tbody.innerHTML = `
+                    <tr>
+                        <td colspan="7" style="text-align: center; padding: 40px; color: #aaa;">
+                            ไม่มีข้อมูลให้แสดง
+                        </td>
+                    </tr>
+                `;
+                return;
+            }
+            
             tbody.innerHTML = importData.map(asset => `
                 <tr>
-                    <td>${asset.code}</td>
-                    <td>${asset.name}</td>
-                    <td>${asset.category}</td>
-                    <td>${asset.location}</td>
+                    <td>${asset.code || '-'}</td>
+                    <td>${asset.name || '-'}</td>
+                    <td>${asset.category || '-'}</td>
+                    <td>${asset.location || '-'}</td>
                     <td>${asset.department || '-'}</td>
-                    <td>${Number(asset.price).toLocaleString()}</td>
-                    <td><span class="badge ${getStatusClass(asset.status)}">${asset.status}</span></td>
+                    <td>${Number(asset.price || 0).toLocaleString()}</td>
+                    <td><span class="badge ${getStatusClass(asset.status)}">${asset.status || 'สมบูรณ์'}</span></td>
                 </tr>
             `).join('');
         }
