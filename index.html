@@ -943,6 +943,10 @@
             <div class="header">
                 <h1><i class="fas fa-home"></i> แดชบอร์ด FMCG</h1>
                 <div class="header-actions">
+                    <button class="btn btn-secondary" onclick="refreshData()" title="รีเฟรชข้อมูล">
+                        <i class="fas fa-sync-alt"></i>
+                        รีเฟรช
+                    </button>
                     <button class="btn btn-info" onclick="showPage('import')">
                         <i class="fas fa-file-excel"></i>
                         Import Excel
@@ -1064,9 +1068,9 @@
             <div class="header">
                 <h1><i class="fas fa-boxes"></i> รายการทรัพย์สิน</h1>
                 <div class="header-actions">
-                    <button class="btn btn-info" onclick="loadFromGoogleSheets()">
-                        <i class="fas fa-sync"></i>
-                        Sync
+                    <button class="btn btn-secondary" onclick="refreshData()" title="รีเฟรชข้อมูล">
+                        <i class="fas fa-sync-alt"></i>
+                        รีเฟรช
                     </button>
                     <button class="btn btn-success" onclick="showPage('add-asset')">
                         <i class="fas fa-plus"></i>
@@ -1393,6 +1397,10 @@
             <div class="header">
                 <h1><i class="fas fa-building"></i> แยกข้อมูลตามแผนก</h1>
                 <div class="header-actions">
+                    <button class="btn btn-secondary" onclick="refreshData()" title="รีเฟรชข้อมูล">
+                        <i class="fas fa-sync-alt"></i>
+                        รีเฟรช
+                    </button>
                     <button class="btn btn-success" onclick="exportDepartmentReport()">
                         <i class="fas fa-file-excel"></i>
                         Export รายงาน
@@ -1501,6 +1509,10 @@
             <div class="header">
                 <h1><i class="fas fa-map-marker-alt"></i> สถานที่เก็บทรัพย์สิน</h1>
                 <div class="header-actions">
+                    <button class="btn btn-secondary" onclick="refreshData()" title="รีเฟรชข้อมูล">
+                        <i class="fas fa-sync-alt"></i>
+                        รีเฟรช
+                    </button>
                     <button class="btn btn-success" onclick="openAddLocationModal()">
                         <i class="fas fa-plus"></i>
                         เพิ่มสถานที่
@@ -1697,6 +1709,10 @@
             <div class="header">
                 <h1><i class="fas fa-clipboard-check"></i> ระบบนับสตอค</h1>
                 <div class="header-actions">
+                    <button class="btn btn-secondary" onclick="refreshData()" title="รีเฟรชข้อมูล">
+                        <i class="fas fa-sync-alt"></i>
+                        รีเฟรช
+                    </button>
                     <button class="btn btn-success" onclick="startStockCount()">
                         <i class="fas fa-play"></i>
                         เริ่มนับสตอคใหม่
@@ -1865,6 +1881,12 @@
         <div id="maintenance" class="page">
             <div class="header">
                 <h1><i class="fas fa-wrench"></i> ระบบบำรุงรักษา</h1>
+                <div class="header-actions">
+                    <button class="btn btn-secondary" onclick="refreshData()" title="รีเฟรชข้อมูล">
+                        <i class="fas fa-sync-alt"></i>
+                        รีเฟรช
+                    </button>
+                </div>
             </div>
 
             <div class="stats-grid">
@@ -1938,8 +1960,8 @@
             <div class="header">
                 <h1><i class="fas fa-chart-line"></i> รายงานและสถิติแบบละเอียด</h1>
                 <div class="header-actions">
-                    <button class="btn btn-primary" onclick="refreshReports()">
-                        <i class="fas fa-sync"></i>
+                    <button class="btn btn-secondary" onclick="refreshData()" title="รีเฟรชข้อมูล">
+                        <i class="fas fa-sync-alt"></i>
                         รีเฟรช
                     </button>
                     <button class="btn btn-warning" onclick="exportToPDF()">
@@ -3186,6 +3208,43 @@
         }
 
         // Update Dashboard
+        // ========================================
+        // 🔄 Refresh Data Function (ข้อ 4)
+        // ========================================
+        async function refreshData() {
+            try {
+                showLoading();
+                console.log('🔄 Refreshing data from Google Sheets...');
+                
+                // โหลดข้อมูลทรัพย์สินจาก Google Sheets
+                await loadFromGoogleSheets();
+                
+                // โหลดสถานที่จาก Google Sheets
+                await loadCustomLocations();
+                
+                // อัพเดท UI ทุกหน้า
+                updateDashboard();
+                renderAssetsTable();
+                updateDepartmentPage();
+                updateLocationsPage();
+                updateMaintenancePage();
+                updateReportsPage();
+                
+                // อัพเดท dropdowns
+                updateLocationDropdowns();
+                
+                hideLoading();
+                showNotification('✅ รีเฟรชข้อมูลสำเร็จ!', 'success');
+                
+                console.log('✅ Refresh completed');
+                
+            } catch (error) {
+                hideLoading();
+                console.error('❌ Refresh error:', error);
+                showNotification('❌ ไม่สามารถรีเฟรชข้อมูลได้: ' + error.message, 'error');
+            }
+        }
+
         function updateDashboard() {
             document.getElementById('totalAssets').textContent = assetsData.length;
             
@@ -4982,12 +5041,14 @@
             showLoading();
 
             try {
+                console.log('📍 กำลังเพิ่มสถานที่:', name);
+                
                 // เพิ่มสถานที่ใหม่
                 const newLocation = {
                     id: 'LOC-' + new Date().getTime(),
                     name: name,
                     description: description,
-                    createdAt: new Date().toISOString()
+                    createdAt: formatThaiDateTime(new Date())
                 };
 
                 customLocations.push(newLocation);
@@ -4997,15 +5058,27 @@
                     locationCapacity[name] = parseInt(capacity);
                 }
 
-                // 🔥 บันทึกลง Google Sheets ทันที
+                // 🔥 บันทึกลง Google Sheets ทันที (ข้อ 5)
                 await saveLocationToSheets(name, capacity || 0, { custom: true });
                 console.log('✅ บันทึกสถานที่ลง Google Sheets สำเร็จ');
 
+                // 🔄 โหลดสถานที่ใหม่จาก Google Sheets (ข้อ 6)
+                await loadCustomLocations();
+                console.log('✅ โหลดสถานที่จาก Google Sheets สำเร็จ');
+
                 hideLoading();
                 closeModal('addLocationModal');
+                
+                // อัพเดท UI
                 updateLocationDropdowns();
                 updateLocationsPage();
+                
                 showNotification(`✅ เพิ่มสถานที่ "${name}" สำเร็จ!`, 'success');
+                
+                // Clear form
+                document.getElementById('newLocationName').value = '';
+                document.getElementById('newLocationCapacity').value = '';
+                document.getElementById('newLocationDescription').value = '';
                 
             } catch (error) {
                 hideLoading();
