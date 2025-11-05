@@ -7590,7 +7590,6 @@
                 updateLocationsPage();
                 updateMaintenancePage();
                 updateReportsPage();
-                updateStockCountPage(); // เพิ่มการโหลด Stock Count
             }
         });
 
@@ -7627,35 +7626,6 @@
             });
         };
     
-        /**
-         * 🔄 บันทึกประวัติการย้ายไปที่ Google Sheets
-         */
-        async function saveTransferHistory(transfer) {
-            const webAppUrl = sheetsConfig.webAppUrl || GOOGLE_APPS_SCRIPT_URL;
-            
-            if (!webAppUrl) {
-                throw new Error('กรุณาตั้งค่า Web App URL');
-            }
-            
-            try {
-                const response = await fetch(webAppUrl, {
-                    method: 'POST',
-                    body: JSON.stringify({
-                        action: 'saveTransferHistory',
-                        data: transfer
-                    })
-                });
-                
-                if (!response.ok) {
-                    throw new Error('ไม่สามารถบันทึกประวัติได้');
-                }
-                
-                return await response.json();
-            } catch (error) {
-                console.error('Error saving transfer history:', error);
-                throw error;
-            }
-        }
 
         /**
          * 🔄 บันทึกข้อมูลสถานที่ไปที่ Google Sheets
@@ -7714,64 +7684,7 @@
             }
         }
 
-        /**
-         * 🔄 บันทึกข้อมูลนับสตอคไปที่ Google Sheets
-         */
-        async function saveStockCountToSheets(stockData, session) {
-            const webAppUrl = sheetsConfig.webAppUrl || GOOGLE_APPS_SCRIPT_URL;
-            
-            if (!webAppUrl) {
-                throw new Error('กรุณาตั้งค่า Web App URL');
-            }
-            
-            try {
-                const response = await fetch(webAppUrl, {
-                    method: 'POST',
-                    body: JSON.stringify({
-                        action: 'saveStockCount',
-                        data: stockData,
-                        session: session
-                    })
-                });
-                
-                if (!response.ok) {
-                    throw new Error('ไม่สามารถบันทึกข้อมูลนับสตอคได้');
-                }
-                
-                return await response.json();
-            } catch (error) {
-                console.error('Error saving stock count:', error);
-                throw error;
-            }
-        }
 
-        /**
-         * 🔄 โหลดข้อมูลนับสตอคจาก Google Sheets
-         */
-        async function loadStockCountFromSheets() {
-            const webAppUrl = sheetsConfig.webAppUrl || GOOGLE_APPS_SCRIPT_URL;
-            
-            if (!webAppUrl) {
-                throw new Error('กรุณาตั้งค่า Web App URL');
-            }
-            
-            try {
-                const response = await fetch(webAppUrl + '?action=getStockCount');
-                
-                if (!response.ok) {
-                    throw new Error('ไม่สามารถโหลดข้อมูลนับสตอคได้');
-                }
-                
-                const result = await response.json();
-                return {
-                    data: result.data || [],
-                    session: result.session || null
-                };
-            } catch (error) {
-                console.error('Error loading stock count:', error);
-                throw error;
-            }
-        }
 
     </script>
 
