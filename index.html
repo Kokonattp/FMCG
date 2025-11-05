@@ -4036,9 +4036,25 @@
             showLoading();
             
             try {
+                // ✅ ตรวจสอบ assetsData ก่อนเริ่มต้น
+                if (!Array.isArray(assetsData)) {
+                    console.warn('⚠️ assetsData is not an array, initializing...');
+                    assetsData = [];
+                }
+                
+                console.log('📊 Current assetsData:', assetsData.length, 'items');
+                
                 // 🔄 โหลดข้อมูลปัจจุบันจาก Google Sheets ก่อน
                 console.log('📥 กำลังโหลดข้อมูลปัจจุบันจาก Google Sheets...');
                 await loadFromGoogleSheets();
+                
+                // ✅ ตรวจสอบอีกครั้งหลัง loadFromGoogleSheets
+                if (!Array.isArray(assetsData)) {
+                    console.warn('⚠️ After load, assetsData is still not an array, initializing...');
+                    assetsData = [];
+                }
+                
+                console.log('📊 After load, assetsData:', assetsData.length, 'items');
                 
                 // สร้าง Set ของ Serial Numbers ที่มีอยู่แล้ว
                 const existingSerials = new Set(
@@ -4098,10 +4114,17 @@
                 }
                 
                 // Add to local data
+                console.log('🔄 Merging data...');
+                console.log('   Before merge - assetsData:', assetsData.length);
+                console.log('   processedData:', processedData.length);
+                
                 assetsData = [...assetsData, ...processedData];
+                
+                console.log('   After merge - assetsData:', assetsData.length);
                 
                 // 🔥 บันทึกลง Google Sheets ทันที
                 console.log('📤 กำลังบันทึกข้อมูลลง Google Sheets...');
+                console.log('📤 Calling saveToGoogleSheets with no parameters, will use assetsData');
                 await saveToGoogleSheets();
                 console.log('✅ บันทึกลง Google Sheets สำเร็จ!');
                 
@@ -6300,7 +6323,7 @@
             renderAssetsTable();
         }
 
-        // Save to Google Sheets
+        // Save to Google Sheets (with assets parameter)
         async function saveToGoogleSheets(assets) {
             const webAppUrl = sheetsConfig.webAppUrl || GOOGLE_APPS_SCRIPT_URL;
             
@@ -6308,7 +6331,23 @@
                 throw new Error('กรุณาตั้งค่า Web App URL ในหน้าตั้งค่าระบบ');
             }
             
-            const rows = assets.map(asset => [
+            // ✅ ถ้าไม่มี assets parameter ให้ใช้ assetsData แทน
+            const dataToSave = assets || assetsData;
+            
+            // ✅ Validate ข้อมูล
+            if (!Array.isArray(dataToSave)) {
+                console.error('❌ dataToSave is not an array:', typeof dataToSave);
+                throw new Error('ข้อมูลไม่ถูกต้อง (ไม่ใช่ array)');
+            }
+            
+            if (dataToSave.length === 0) {
+                console.warn('⚠️ dataToSave is empty');
+                return { success: true, message: 'ไม่มีข้อมูลที่จะบันทึก' };
+            }
+            
+            console.log('📤 Saving with assets parameter:', dataToSave.length, 'items');
+            
+            const rows = dataToSave.map(asset => [
                 asset.code, asset.name, asset.category, asset.brand, asset.model,
                 asset.serial, asset.purchaseDate, asset.price, asset.location,
                 asset.department || '', asset.status, asset.description, asset.createdAt
@@ -6323,7 +6362,7 @@
             });
             
             if (!response.ok) {
-                throw new Error('ไม่สามารถบันทึกข้อมูลได้');
+                throw new Error('HTTP Error: ' + response.status);
             }
             
             const result = await response.json();
