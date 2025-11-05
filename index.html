@@ -2735,7 +2735,7 @@
                 <button class="btn btn-secondary" onclick="window.confirmCallback(false)" style="min-width: 120px;">
                     <i class="fas fa-times"></i> ยกเลิก
                 </button>
-                <button class="btn btn-danger" onclick="window.confirmCallback(true)" style="min-width: 120px; background: linear-gradient(135deg, var(--danger) 0%, #dc2626 100%);">
+                <button class="btn btn-danger" onclick="window.confirmCallback(true)" style="min-width: 120px; background: linear-gradient(135deg, var(--danger) 0%, #dc2626 100%); color: white;">
                     <i class="fas fa-check"></i> ตกลง
                 </button>
             </div>
@@ -3281,7 +3281,7 @@
                     <td><span class="badge ${getStatusClass(asset.status)}">${asset.status}</span></td>
                     <td>${Number(asset.price).toLocaleString()}</td>
                     <td style="white-space: nowrap;">
-                        <button class="action-btn edit" onclick="editAsset('${asset.code}')" title="แก้ไข" disabled style="opacity: 0.5; cursor: not-allowed;">
+                        <button class="action-btn edit" onclick="editAsset(${index})" title="แก้ไข">
                             <i class="fas fa-edit"></i>
                         </button>
                         <button class="action-btn delete" onclick="deleteAsset('${asset.code}')" title="ลบ">
@@ -3397,18 +3397,261 @@
             }
         }
 
-        // Delete Asset
+        // Edit Asset - แสดงรายละเอียดและแก้ไขได้
+        function editAsset(index) {
+            const asset = assetsData[index];
+            
+            if (!asset) {
+                showNotification('❌ ไม่พบข้อมูลทรัพย์สิน', 'error');
+                return;
+            }
+            
+            // สร้าง modal สำหรับแสดงและแก้ไขข้อมูล
+            const modalHtml = `
+                <div class="modal active" id="editAssetModal" onclick="if(event.target === this) closeEditAssetModal()">
+                    <div class="modal-content" style="max-width: 800px;">
+                        <div class="modal-header">
+                            <h3><i class="fas fa-edit"></i> แก้ไขข้อมูลทรัพย์สิน</h3>
+                            <button class="close-modal" onclick="closeEditAssetModal()">
+                                <i class="fas fa-times"></i>
+                            </button>
+                        </div>
+                        
+                        <div class="form-grid" style="margin-top: 20px;">
+                            <div class="form-group">
+                                <label>รหัสทรัพย์สิน <span class="required">*</span></label>
+                                <input type="text" id="editAssetCode" value="${asset.code}" readonly style="background: #f5f5f5;">
+                            </div>
+                            
+                            <div class="form-group">
+                                <label>หมวดหมู่ <span class="required">*</span></label>
+                                <select id="editCategory">
+                                    <option value="">เลือกหมวดหมู่</option>
+                                    <option ${asset.category === 'พาเลท' ? 'selected' : ''}>พาเลท</option>
+                                    <option ${asset.category === 'TOTE' ? 'selected' : ''}>TOTE</option>
+                                    <option ${asset.category === 'ตะแกรงกรง' ? 'selected' : ''}>ตะแกรงกรง</option>
+                                    <option ${asset.category === 'RF Scanner' ? 'selected' : ''}>RF Scanner</option>
+                                    <option ${asset.category === 'IData' ? 'selected' : ''}>IData</option>
+                                    <option ${asset.category === 'แบตเตอรี่ RF' ? 'selected' : ''}>แบตเตอรี่ RF</option>
+                                    <option ${asset.category === 'แบตเตอรี่ IData' ? 'selected' : ''}>แบตเตอรี่ IData</option>
+                                    <option ${asset.category === 'วิทยุสื่อสาร' ? 'selected' : ''}>วิทยุสื่อสาร</option>
+                                    <option ${asset.category === 'Cutter Safety' ? 'selected' : ''}>Cutter Safety</option>
+                                    <option ${asset.category === 'รถโฟล์คลิฟท์' ? 'selected' : ''}>รถโฟล์คลิฟท์</option>
+                                    <option ${asset.category === 'ชั้นวางสินค้า' ? 'selected' : ''}>ชั้นวางสินค้า</option>
+                                    <option ${asset.category === 'อุปกรณ์คลัง' ? 'selected' : ''}>อุปกรณ์คลัง</option>
+                                    <option ${asset.category === 'เครื่องจักร' ? 'selected' : ''}>เครื่องจักร</option>
+                                    <option ${asset.category === 'อื่นๆ' ? 'selected' : ''}>อื่นๆ</option>
+                                </select>
+                            </div>
+                            
+                            <div class="form-group full-width">
+                                <label>ชื่อทรัพย์สิน <span class="required">*</span></label>
+                                <input type="text" id="editAssetName" value="${asset.name}">
+                            </div>
+                            
+                            <div class="form-group">
+                                <label>ยี่ห้อ</label>
+                                <input type="text" id="editBrand" value="${asset.brand || ''}">
+                            </div>
+                            
+                            <div class="form-group">
+                                <label>รุ่น</label>
+                                <input type="text" id="editModel" value="${asset.model || ''}">
+                            </div>
+                            
+                            <div class="form-group">
+                                <label>Serial Number</label>
+                                <input type="text" id="editSerial" value="${asset.serial || ''}">
+                            </div>
+                            
+                            <div class="form-group">
+                                <label>วันที่รับเข้า</label>
+                                <input type="date" id="editPurchaseDate" value="${asset.purchaseDate || ''}">
+                            </div>
+                            
+                            <div class="form-group">
+                                <label>ราคาซื้อ (฿)</label>
+                                <input type="number" id="editPrice" value="${asset.price || 0}">
+                            </div>
+                            
+                            <div class="form-group">
+                                <label>สถานที่เก็บ</label>
+                                <select id="editLocation">
+                                    <option value="">เลือกสถานที่</option>
+                                </select>
+                            </div>
+                            
+                            <div class="form-group">
+                                <label>แผนก</label>
+                                <select id="editDepartment">
+                                    <option value="">เลือกแผนก</option>
+                                    <option ${asset.department === 'สำรอง' ? 'selected' : ''}>สำรอง</option>
+                                    <option ${asset.department === 'AC' ? 'selected' : ''}>AC</option>
+                                    <option ${asset.department === 'AP' ? 'selected' : ''}>AP</option>
+                                    <option ${asset.department === 'APB' ? 'selected' : ''}>APB</option>
+                                    <option ${asset.department === 'APGM' ? 'selected' : ''}>APGM</option>
+                                    <option ${asset.department === 'CF' ? 'selected' : ''}>CF</option>
+                                    <option ${asset.department === 'APL' ? 'selected' : ''}>APL</option>
+                                    <option ${asset.department === 'CP' ? 'selected' : ''}>CP</option>
+                                    <option ${asset.department === 'DP' ? 'selected' : ''}>DP</option>
+                                    <option ${asset.department === 'INV' ? 'selected' : ''}>INV</option>
+                                    <option ${asset.department === 'LS' ? 'selected' : ''}>LS</option>
+                                    <option ${asset.department === 'QA' ? 'selected' : ''}>QA</option>
+                                    <option ${asset.department === 'RC' ? 'selected' : ''}>RC</option>
+                                    <option ${asset.department === 'ST' ? 'selected' : ''}>ST</option>
+                                </select>
+                            </div>
+                            
+                            <div class="form-group">
+                                <label>สถานะ</label>
+                                <select id="editStatus">
+                                    <option ${asset.status === 'สมบูรณ์' ? 'selected' : ''}>สมบูรณ์</option>
+                                    <option ${asset.status === 'ส่งซ่อม' ? 'selected' : ''}>ส่งซ่อม</option>
+                                    <option ${asset.status === 'ชำรุด' ? 'selected' : ''}>ชำรุด</option>
+                                    <option ${asset.status === 'เสีย' ? 'selected' : ''}>เสีย</option>
+                                </select>
+                            </div>
+                            
+                            <div class="form-group full-width">
+                                <label>คำอธิบาย</label>
+                                <textarea id="editDescription" style="min-height: 80px;">${asset.description || ''}</textarea>
+                            </div>
+                        </div>
+                        
+                        <div class="form-actions" style="margin-top: 20px;">
+                            <button class="btn btn-secondary" onclick="closeEditAssetModal()">
+                                <i class="fas fa-times"></i> ยกเลิก
+                            </button>
+                            <button class="btn btn-success" onclick="saveEditedAsset(${index})">
+                                <i class="fas fa-save"></i> บันทึกการแก้ไข
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            `;
+            
+            // Remove existing modal if any
+            const existingModal = document.getElementById('editAssetModal');
+            if (existingModal) {
+                existingModal.remove();
+            }
+            
+            // Add modal to body
+            document.body.insertAdjacentHTML('beforeend', modalHtml);
+            
+            // Populate location dropdown
+            const editLocationSelect = document.getElementById('editLocation');
+            if (editLocationSelect) {
+                const locations = getAllLocations();
+                editLocationSelect.innerHTML = '<option value="">เลือกสถานที่</option>' +
+                    locations.map(loc => `<option value="${loc}" ${loc === asset.location ? 'selected' : ''}>${loc}</option>`).join('');
+            }
+        }
+        
+        // Close Edit Asset Modal
+        function closeEditAssetModal() {
+            const modal = document.getElementById('editAssetModal');
+            if (modal) {
+                modal.classList.remove('active');
+                setTimeout(() => modal.remove(), 300);
+            }
+        }
+        
+        // Save Edited Asset
+        async function saveEditedAsset(index) {
+            const code = document.getElementById('editAssetCode').value;
+            const name = document.getElementById('editAssetName').value;
+            const category = document.getElementById('editCategory').value;
+            const brand = document.getElementById('editBrand').value;
+            const model = document.getElementById('editModel').value;
+            const serial = document.getElementById('editSerial').value;
+            const purchaseDate = document.getElementById('editPurchaseDate').value;
+            const price = document.getElementById('editPrice').value;
+            const location = document.getElementById('editLocation').value;
+            const department = document.getElementById('editDepartment').value;
+            const status = document.getElementById('editStatus').value;
+            const description = document.getElementById('editDescription').value;
+            
+            if (!code || !name || !category) {
+                showNotification('❌ กรุณากรอกข้อมูลที่จำเป็น (*)', 'error');
+                return;
+            }
+            
+            showLoading();
+            
+            try {
+                // อัพเดทข้อมูลใน array
+                assetsData[index] = {
+                    ...assetsData[index],
+                    name, category, brand, model, serial,
+                    purchaseDate, price, location, department, status, description
+                };
+                
+                // 📝 บันทึกประวัติการแก้ไข
+                if (typeof logAssetUpdate === 'function') {
+                    logAssetUpdate(assetsData[index]);
+                }
+                
+                // 💾 บันทึกลง Google Sheets
+                await saveToGoogleSheets();
+                
+                hideLoading();
+                closeEditAssetModal();
+                showNotification('✅ แก้ไขข้อมูลสำเร็จและ Sync กับ Google Sheets แล้ว!', 'success');
+                
+                renderAssetsTable();
+                updateDashboard();
+                updateDepartmentPage();
+                updateLocationsPage();
+                
+            } catch (error) {
+                hideLoading();
+                console.error('Save error:', error);
+                showNotification('⚠️ แก้ไขในระบบแล้ว แต่ไม่สามารถ Sync กับ Google Sheets ได้', 'warning');
+                
+                closeEditAssetModal();
+                renderAssetsTable();
+                updateDashboard();
+            }
+        }
+
+        // Delete Asset - แก้ไขให้บันทึกลง Google Sheets
         async function deleteAsset(code) {
             const confirmed = await confirm('ต้องการลบทรัพย์สิน ' + code + ' หรือไม่?');
             if (!confirmed) {
                 return;
             }
             
-            assetsData = assetsData.filter(a => a.code !== code);
+            showLoading();
             
-            showNotification('✅ ลบทรัพย์สินสำเร็จ!', 'success');
-            renderAssetsTable();
-            updateDashboard();
+            try {
+                // ลบจาก array
+                assetsData = assetsData.filter(a => a.code !== code);
+                
+                // 📝 บันทึกประวัติการลบ
+                if (typeof logAssetDeletion === 'function') {
+                    logAssetDeletion({ code });
+                }
+                
+                // 💾 บันทึกลง Google Sheets (ลบโดยการ save ข้อมูลที่เหลือทั้งหมด)
+                await saveToGoogleSheets();
+                
+                hideLoading();
+                showNotification('✅ ลบทรัพย์สินสำเร็จและ Sync กับ Google Sheets แล้ว!', 'success');
+                
+                renderAssetsTable();
+                updateDashboard();
+                updateDepartmentPage();
+                updateLocationsPage();
+                
+            } catch (error) {
+                hideLoading();
+                console.error('Delete error:', error);
+                showNotification('⚠️ ลบในระบบแล้ว แต่ไม่สามารถ Sync กับ Google Sheets ได้', 'warning');
+                
+                renderAssetsTable();
+                updateDashboard();
+            }
         }
 
         // ========================================
