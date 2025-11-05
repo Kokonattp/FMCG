@@ -1139,9 +1139,9 @@
             <div class="header">
                 <h1><i class="fas fa-plus-circle"></i> เพิ่มทรัพย์สินใหม่</h1>
                 <div class="header-actions">
-                    <button class="btn btn-warning" onclick="showImportSection()">
+                    <button class="btn btn-info" onclick="showPage('import')">
                         <i class="fas fa-file-excel"></i>
-                        Import จาก Excel
+                        Import Excel
                     </button>
                     <button class="btn btn-secondary" onclick="showPage('assets')">
                         <i class="fas fa-arrow-left"></i>
@@ -4005,7 +4005,7 @@
                 const existingSerials = new Set(
                     assetsData
                         .map(asset => asset.serial)
-                        .filter(serial => serial && serial.trim() !== '')
+                        .filter(serial => serial && typeof serial === 'string' && serial.trim() !== '')
                 );
                 
                 let addedCount = 0;
@@ -4014,9 +4014,10 @@
                 // ตรวจสอบและเติมข้อมูลที่ขาด
                 const processedData = importData.filter(asset => {
                     // ✅ เช็ค Serial Number ไม่ซ้ำ
-                    if (asset.serial && asset.serial.trim() !== '') {
-                        if (existingSerials.has(asset.serial)) {
-                            console.log(`⚠️ ข้าม ${asset.name} - Serial Number ซ้ำ: ${asset.serial}`);
+                    if (asset.serial && typeof asset.serial === 'string' && asset.serial.trim() !== '') {
+                        const serialTrimmed = asset.serial.trim();
+                        if (existingSerials.has(serialTrimmed)) {
+                            console.log(`⚠️ ข้าม ${asset.name} - Serial Number ซ้ำ: ${serialTrimmed}`);
                             skippedCount++;
                             return false; // ข้ามรายการนี้
                         }
@@ -4032,8 +4033,9 @@
                         asset.status = 'สมบูรณ์';
                     }
                     
-                    // ✅ ถ้าไม่มีสถานที่ให้ใส่ "คลังสินค้าDC1"
-                    if (!asset.location || asset.location.trim() === '') {
+                    // ✅ ถ้าไม่มีสถานที่หรือเป็นค่าว่าง ให้ใส่ "คลังสินค้าDC1"
+                    // ถ้ามีการระบุสถานที่ไว้แล้วใน Excel ก็ใช้ค่านั้น
+                    if (!asset.location || (typeof asset.location === 'string' && asset.location.trim() === '')) {
                         asset.location = 'คลังสินค้าDC1';
                     }
                     
