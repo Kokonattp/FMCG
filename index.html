@@ -2278,7 +2278,7 @@
 
                     <div class="form-group full-width">
                         <label>Google Apps Script Web App URL <span class="required">*</span></label>
-                        <input type="text" id="webAppUrl" placeholder="https://script.google.com/macros/s/...">
+                        <input type="text" id="webAppUrl" placeholder="https://script.google.com/macros/s/AKfycbxUOSi10Dvuz6W98O33yT1PwVGEv2uZRljw8eGNXwfH1SwMjZMUksC-mab-cXJXNbTptg/exec">
                         <small style="color: #666; margin-top: 5px; display: block;">
                             <i class="fas fa-code"></i> 
                             Apps Script URL สำหรับบันทึกข้อมูล
@@ -6122,6 +6122,10 @@
             
             if (!webAppUrl) {
                 showNotification('กรุณาตั้งค่า Web App URL ในหน้าตั้งค่าระบบ', 'error');
+                // ✅ คืนค่า assetsData เป็น array ว่างเพื่อป้องกัน undefined
+                if (!Array.isArray(assetsData)) {
+                    assetsData = [];
+                }
                 return;
             }
             
@@ -6140,45 +6144,59 @@
             
             // 📝 ใช้ Google Apps Script (วิธีสำรอง)
             try {
-                const response = await fetch(webAppUrl);
+                const response = await fetch(webAppUrl + '?action=getAssets');
                 
                 if (!response.ok) {
-                    throw new Error('ไม่สามารถดึงข้อมูลได้');
+                    throw new Error('ไม่สามารถดึงข้อมูลได้: ' + response.status);
                 }
                 
                 const result = await response.json();
+                console.log('📥 Load result:', result);
                 
-                if (!result.success || !result.data || result.data.length <= 1) {
+                // ✅ เช็คว่า result มีโครงสร้างที่ถูกต้อง
+                if (!result.success) {
+                    throw new Error(result.error || 'เกิดข้อผิดพลาดในการโหลดข้อมูล');
+                }
+                
+                // ✅ ถ้าไม่มีข้อมูล ให้ assetsData เป็น array ว่าง
+                if (!result.data || !Array.isArray(result.data) || result.data.length === 0) {
+                    assetsData = [];
                     hideLoading();
                     showNotification('⚠️ ไม่พบข้อมูลใน Google Sheets', 'warning');
                     return;
                 }
                 
-                const loadedAssets = result.data.slice(1).map(row => ({
-                    code: row[0] || '',
-                    name: row[1] || '',
-                    category: row[2] || '',
-                    brand: row[3] || '',
-                    model: row[4] || '',
-                    serial: row[5] || '',
-                    purchaseDate: row[6] || '',
-                    price: row[7] || 0,
-                    location: row[8] || '',
-                    department: row[9] || '',
-                    status: row[10] || 'สมบูรณ์',
-                    description: row[11] || '',
-                    createdAt: row[12] || new Date().toISOString()
+                // ✅ แปลงข้อมูลจาก object format (จาก Apps Script)
+                const loadedAssets = result.data.map(asset => ({
+                    code: asset['รหัสทรัพย์สิน'] || asset.code || '',
+                    name: asset['ชื่อทรัพย์สิน'] || asset.name || '',
+                    category: asset['หมวดหมู่'] || asset.category || '',
+                    brand: asset['ยี่ห้อ'] || asset.brand || '',
+                    model: asset['รุ่น'] || asset.model || '',
+                    serial: asset['Serial Number'] || asset.serial || '',
+                    purchaseDate: asset['วันที่รับเข้า'] || asset.purchaseDate || '',
+                    price: asset['ราคาซื้อ'] || asset.price || 0,
+                    location: asset['สถานที่เก็บ'] || asset.location || '',
+                    department: asset['แผนก'] || asset.department || '',
+                    status: asset['สถานะ'] || asset.status || 'สมบูรณ์',
+                    description: asset['คำอธิบาย'] || asset.description || '',
+                    createdAt: asset['อัพเดทล่าสุด'] || asset.createdAt || new Date().toISOString()
                 })).filter(asset => asset.code && asset.name);
                 
                 assetsData = loadedAssets;
                 
                 hideLoading();
-                showNotification(`✅ โหลดข้อมูล ${loadedAssets.length} รายการสำเร็จ! (Apps Script)`, 'success');
+                showNotification(`✅ โหลดข้อมูล ${loadedAssets.length} รายการสำเร็จ!`, 'success');
                 
                 updateDashboard();
                 renderAssetsTable();
                 
             } catch (error) {
+                console.error('❌ Load error:', error);
+                // ✅ ถ้าเกิด error ให้ assetsData เป็น array ว่าง
+                if (!Array.isArray(assetsData)) {
+                    assetsData = [];
+                }
                 hideLoading();
                 showNotification('❌ เกิดข้อผิดพลาด: ' + error.message, 'error');
             }
@@ -6192,7 +6210,19 @@
                 throw new Error('กรุณาตั้งค่า Web App URL ในหน้าตั้งค่าระบบ');
             }
             
+            // ✅ Validate assetsData ก่อนบันทึก
+            if (!Array.isArray(assetsData)) {
+                throw new Error('ข้อมูล assetsData ไม่ถูกต้อง (ไม่ใช่ array)');
+            }
+            
+            if (assetsData.length === 0) {
+                console.warn('⚠️ assetsData ว่างเปล่า');
+                return { success: true, message: 'ไม่มีข้อมูลที่จะบันทึก' };
+            }
+            
             try {
+                console.log('📤 กำลังบันทึก:', assetsData.length, 'รายการ');
+                
                 const response = await fetch(webAppUrl, {
                     method: 'POST',
                     headers: {
@@ -6207,10 +6237,11 @@
                 });
                 
                 if (!response.ok) {
-                    throw new Error('ไม่สามารถบันทึกข้อมูลได้');
+                    throw new Error('HTTP Error: ' + response.status);
                 }
                 
                 const result = await response.json();
+                console.log('📥 Save result:', result);
                 
                 if (!result.success) {
                     throw new Error(result.error || 'เกิดข้อผิดพลาดในการบันทึก');
