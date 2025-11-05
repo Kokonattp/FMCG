@@ -2867,6 +2867,23 @@
 
         // Global Variables
         let assetsData = [];
+        
+        // ========================================
+        // 🕒 Helper: Format Thai DateTime
+        // ========================================
+        function formatThaiDateTime(date) {
+            if (!date) date = new Date();
+            if (typeof date === 'string') date = new Date(date);
+            
+            const day = String(date.getDate()).padStart(2, '0');
+            const month = String(date.getMonth() + 1).padStart(2, '0');
+            const year = date.getFullYear() + 543; // พ.ศ.
+            const hours = String(date.getHours()).padStart(2, '0');
+            const minutes = String(date.getMinutes()).padStart(2, '0');
+            const seconds = String(date.getSeconds()).padStart(2, '0');
+            
+            return `${day}/${month}/${year} ${hours}:${minutes}:${seconds}`;
+        }
         let importData = [];
         let customLocations = []; // สถานที่จาก Google Sheets
         let locationCapacity = {}; // ความจุแต่ละสถานที่
@@ -4056,6 +4073,13 @@
                 
                 console.log('📊 After load, assetsData:', assetsData.length, 'items');
                 
+                // ✅ สร้าง Set ของรหัสทรัพย์สินที่มีอยู่แล้วในระบบ (ตามที่ขอ)
+                const existingCodes = new Set(
+                    assetsData
+                        .map(asset => asset.code)
+                        .filter(code => code && typeof code === 'string' && code.trim() !== '')
+                );
+                
                 // สร้าง Set ของ Serial Numbers ที่มีอยู่แล้ว
                 const existingSerials = new Set(
                     assetsData
@@ -4063,19 +4087,62 @@
                         .filter(serial => serial && typeof serial === 'string' && serial.trim() !== '')
                 );
                 
-                console.log('📋 Existing serials:', Array.from(existingSerials));
+                console.log('📋 Existing codes:', Array.from(existingCodes).length, 'codes');
+                console.log('📋 Existing serials:', Array.from(existingSerials).length, 'serials');
+                
+                // ✅ เช็ครหัสทรัพย์สินซ้ำภายในไฟล์ Excel เอง (ตามที่ขอ)
+                const codesInFile = new Set();
+                const duplicateCodesInFile = new Set();
+                
+                importData.forEach(asset => {
+                    const code = asset.code ? asset.code.trim() : '';
+                    if (code) {
+                        if (codesInFile.has(code)) {
+                            duplicateCodesInFile.add(code);
+                        }
+                        codesInFile.add(code);
+                    }
+                });
+                
+                if (duplicateCodesInFile.size > 0) {
+                    console.warn('⚠️ พบรหัสทรัพย์สินซ้ำในไฟล์ Excel:', Array.from(duplicateCodesInFile));
+                }
                 
                 let addedCount = 0;
                 let skippedCount = 0;
+                let skippedReasons = {
+                    duplicateCode: 0,
+                    duplicateCodeInFile: 0,
+                    duplicateSerial: 0
+                };
                 
                 // ตรวจสอบและเติมข้อมูลที่ขาด
                 const processedData = importData.filter(asset => {
-                    // ✅ เช็ค Serial Number ไม่ซ้ำ
+                    const assetCode = asset.code ? asset.code.trim() : '';
+                    
+                    // ✅ เช็ครหัสทรัพย์สินซ้ำในไฟล์ Excel (ตามที่ขอข้อ 3)
+                    if (assetCode && duplicateCodesInFile.has(assetCode)) {
+                        console.log(`⚠️ ข้าม ${asset.name} - รหัสทรัพย์สินซ้ำในไฟล์ Excel: ${assetCode}`);
+                        skippedCount++;
+                        skippedReasons.duplicateCodeInFile++;
+                        return false;
+                    }
+                    
+                    // ✅ เช็ครหัสทรัพย์สินซ้ำกับข้อมูลในชีท (ตามที่ขอข้อ 2)
+                    if (assetCode && existingCodes.has(assetCode)) {
+                        console.log(`⚠️ ข้าม ${asset.name} - รหัสทรัพย์สินซ้ำในระบบ: ${assetCode}`);
+                        skippedCount++;
+                        skippedReasons.duplicateCode++;
+                        return false;
+                    }
+                    
+                    // เช็ค Serial Number ไม่ซ้ำ
                     if (asset.serial && typeof asset.serial === 'string' && asset.serial.trim() !== '') {
                         const serialTrimmed = asset.serial.trim();
                         if (existingSerials.has(serialTrimmed)) {
                             console.log(`⚠️ ข้าม ${asset.name} - Serial Number ซ้ำ: ${serialTrimmed}`);
                             skippedCount++;
+                            skippedReasons.duplicateSerial++;
                             return false; // ข้ามรายการนี้
                         }
                     }
@@ -4091,7 +4158,6 @@
                     }
                     
                     // ✅ ถ้าไม่มีสถานที่หรือเป็นค่าว่าง ให้ใส่ "คลังสินค้าDC1"
-                    // ถ้ามีการระบุสถานที่ไว้แล้วใน Excel ก็ใช้ค่านั้น
                     if (!asset.location || (typeof asset.location === 'string' && asset.location.trim() === '')) {
                         asset.location = 'คลังสินค้าDC1';
                     }
@@ -4099,17 +4165,26 @@
                     addedCount++;
                     return true; // รายการนี้ผ่านการตรวจสอบ
                 }).map(asset => {
-                    // เพิ่ม timestamp
-                    asset.createdAt = new Date().toISOString();
+                    // ✅ เพิ่ม timestamp ในรูปแบบวันที่ไทย (ตามที่ขอข้อ 1)
+                    asset.createdAt = formatThaiDateTime(new Date());
                     return asset;
                 });
                 
                 console.log('✅ Processed data:', processedData.length, 'items');
                 console.log('⏭️ Skipped:', skippedCount, 'items');
+                console.log('   - รหัสซ้ำในระบบ:', skippedReasons.duplicateCode);
+                console.log('   - รหัสซ้ำในไฟล์:', skippedReasons.duplicateCodeInFile);
+                console.log('   - Serial ซ้ำ:', skippedReasons.duplicateSerial);
                 
                 if (processedData.length === 0) {
                     hideLoading();
-                    showNotification(`⚠️ ไม่มีข้อมูลใหม่ที่จะเพิ่ม (Serial Number ซ้ำทั้งหมด ${skippedCount} รายการ)`, 'warning');
+                    
+                    let reason = '';
+                    if (skippedReasons.duplicateCode > 0) reason += `รหัสซ้ำในระบบ ${skippedReasons.duplicateCode} รายการ `;
+                    if (skippedReasons.duplicateCodeInFile > 0) reason += `รหัสซ้ำในไฟล์ ${skippedReasons.duplicateCodeInFile} รายการ `;
+                    if (skippedReasons.duplicateSerial > 0) reason += `Serial ซ้ำ ${skippedReasons.duplicateSerial} รายการ`;
+                    
+                    showNotification(`⚠️ ไม่มีข้อมูลใหม่ที่จะเพิ่ม (${reason})`, 'warning');
                     return;
                 }
                 
