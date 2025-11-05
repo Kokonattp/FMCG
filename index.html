@@ -2721,6 +2721,28 @@
         <div class="spinner"></div>
     </div>
 
+    <!-- Custom Confirmation Modal -->
+    <div id="confirmModal" class="modal" style="z-index: 10000;">
+        <div class="modal-content" style="max-width: 500px; animation: modalSlideIn 0.3s ease;">
+            <div class="modal-header" style="border-bottom: 3px solid var(--primary);">
+                <h2 id="confirmTitle" style="color: var(--primary); display: flex; align-items: center; gap: 10px;">
+                    <i class="fas fa-question-circle"></i> ยืนยันการทำงาน
+                </h2>
+            </div>
+            <div class="modal-body" style="padding: 30px;">
+                <p id="confirmMessage" style="font-size: 16px; line-height: 1.6; color: #333; margin: 0; white-space: pre-line;"></p>
+            </div>
+            <div style="display: flex; gap: 15px; padding: 0 30px 30px 30px; justify-content: flex-end;">
+                <button class="btn btn-secondary" onclick="window.confirmCallback(false)" style="min-width: 120px;">
+                    <i class="fas fa-times"></i> ยกเลิก
+                </button>
+                <button class="btn btn-danger" onclick="window.confirmCallback(true)" style="min-width: 120px;">
+                    <i class="fas fa-check"></i> ยืนยัน
+                </button>
+            </div>
+        </div>
+    </div>
+
         <script>
         // ⚠️ Critical Functions - ต้องโหลดก่อนเพื่อรองรับ onclick events
         
@@ -2728,6 +2750,46 @@
             const sidebar = document.getElementById('sidebar');
             if (sidebar) sidebar.classList.toggle('collapsed');
         }
+
+        // ========================================
+        // 🎨 Custom Confirm Dialog (สวยกว่า browser default)
+        // ========================================
+        
+        window.confirmCallback = null;
+        
+        function customConfirm(message, title = 'ยืนยันการทำงาน') {
+            return new Promise((resolve) => {
+                const modal = document.getElementById('confirmModal');
+                const titleElement = document.getElementById('confirmTitle');
+                const messageElement = document.getElementById('confirmMessage');
+                
+                // ตั้งค่า title และ message
+                if (title) {
+                    titleElement.innerHTML = `<i class="fas fa-question-circle"></i> ${title}`;
+                }
+                messageElement.textContent = message;
+                
+                // ตั้งค่า callback
+                window.confirmCallback = (result) => {
+                    modal.classList.remove('active');
+                    resolve(result);
+                };
+                
+                // แสดง modal
+                modal.classList.add('active');
+                
+                // ปิด modal เมื่อคลิกนอก modal
+                modal.onclick = (e) => {
+                    if (e.target === modal) {
+                        window.confirmCallback(false);
+                    }
+                };
+            });
+        }
+        
+        // Override confirm function ให้ใช้ custom confirm
+        window.originalConfirm = window.confirm;
+        window.confirm = customConfirm;
 
         function showPage(pageId) {
             // รอ DOM ถ้ายังไม่พร้อม
@@ -3268,8 +3330,9 @@
         }
 
         // Delete Asset
-        function deleteAsset(code) {
-            if (!confirm('ต้องการลบทรัพย์สิน ' + code + ' หรือไม่?')) {
+        async function deleteAsset(code) {
+            const confirmed = await confirm('ต้องการลบทรัพย์สิน ' + code + ' หรือไม่?');
+            if (!confirmed) {
                 return;
             }
             
@@ -4725,7 +4788,7 @@
 
         // Delete Location
         async function deleteLocation(locationName) {
-            const confirmed = confirm(`คุณต้องการลบสถานที่ "${locationName}" ใช่หรือไม่?`);
+            const confirmed = await confirm(`คุณต้องการลบสถานที่ "${locationName}" ใช่หรือไม่?`);
             if (!confirmed) return;
 
             // ลบจาก customLocations
@@ -6527,13 +6590,13 @@
         let currentStockSession = null;
 
         // Start Stock Count
-        function startStockCount() {
+        async function startStockCount() {
             if (assetsData.length === 0) {
                 showNotification('ไม่มีทรัพย์สินในระบบ กรุณาเพิ่มทรัพย์สินก่อน', 'warning');
                 return;
             }
 
-            const confirmed = confirm('คุณต้องการเริ่มการนับสตอคใหม่ใช่หรือไม่?\n\n📦 Stock Count - Physical Inventory Verification\nระบบจะสร้างรายการนับสตอคจากทรัพย์สินทั้งหมดในระบบ\nคุณสามารถนับทีละส่วน (Cycle Count) หรือนับทั้งหมด (Full Count)');
+            const confirmed = await confirm('คุณต้องการเริ่มการนับสตอคใหม่ใช่หรือไม่?\n\n📦 Stock Count - Physical Inventory Verification\nระบบจะสร้างรายการนับสตอคจากทรัพย์สินทั้งหมดในระบบ\nคุณสามารถนับทีละส่วน (Cycle Count) หรือนับทั้งหมด (Full Count)');
             
             if (!confirmed) return;
 
