@@ -3989,7 +3989,12 @@
 
         // Confirm Import
         async function confirmImport() {
-            if (importData.length === 0) {
+            console.log('🔍 confirmImport called');
+            console.log('📦 importData:', importData);
+            console.log('📦 importData type:', typeof importData);
+            console.log('📦 importData length:', importData ? importData.length : 'undefined');
+            
+            if (!importData || !Array.isArray(importData) || importData.length === 0) {
                 showNotification('ไม่มีข้อมูลให้นำเข้า', 'warning');
                 return;
             }
@@ -4007,6 +4012,8 @@
                         .map(asset => asset.serial)
                         .filter(serial => serial && typeof serial === 'string' && serial.trim() !== '')
                 );
+                
+                console.log('📋 Existing serials:', Array.from(existingSerials));
                 
                 let addedCount = 0;
                 let skippedCount = 0;
@@ -4047,6 +4054,9 @@
                     return asset;
                 });
                 
+                console.log('✅ Processed data:', processedData.length, 'items');
+                console.log('⏭️ Skipped:', skippedCount, 'items');
+                
                 if (processedData.length === 0) {
                     hideLoading();
                     showNotification(`⚠️ ไม่มีข้อมูลใหม่ที่จะเพิ่ม (Serial Number ซ้ำทั้งหมด ${skippedCount} รายการ)`, 'warning');
@@ -4082,6 +4092,7 @@
             } catch (error) {
                 hideLoading();
                 console.error('❌ เกิดข้อผิดพลาด:', error);
+                console.error('❌ Error stack:', error.stack);
                 showNotification('❌ เกิดข้อผิดพลาด: ' + error.message, 'error');
             }
         }
