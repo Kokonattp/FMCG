@@ -3287,6 +3287,12 @@
                 return;
             }
             
+            // ตรวจสอบรหัสซ้ำ
+            if (assetsData.find(a => a.code === code)) {
+                showNotification('❌ รหัสทรัพย์สินซ้ำ กรุณาใช้รหัสอื่น', 'error');
+                return;
+            }
+            
             const asset = {
                 id: code, // ใช้ code เป็น unique ID
                 code, name, category, brand, model, serial,
@@ -3297,7 +3303,7 @@
             showLoading();
             
             try {
-                // Save to local storage
+                // เพิ่มเข้า array
                 assetsData.push(asset);
                 
                 // 📝 บันทึกประวัติการสร้างทรัพย์สินใหม่
@@ -3305,13 +3311,11 @@
                     logAssetCreation(asset);
                 }
                 
-                // Save to Google Sheets if configured
-                if (sheetsConfig.webAppUrl) {
-                    await saveToGoogleSheets([asset]);
-                }
+                // 💾 บันทึกลง Google Sheets
+                await saveToGoogleSheets();
                 
                 hideLoading();
-                showNotification('✅ บันทึกทรัพย์สินสำเร็จ!', 'success');
+                showNotification('✅ บันทึกทรัพย์สินสำเร็จและ Sync กับ Google Sheets แล้ว!', 'success');
                 
                 // Clear form
                 document.getElementById('newAssetCode').value = '';
@@ -3325,7 +3329,10 @@
                 showPage('assets');
             } catch (error) {
                 hideLoading();
-                showNotification('❌ เกิดข้อผิดพลาด: ' + error.message, 'error');
+                console.error('Save error:', error);
+                showNotification('⚠️ บันทึกในระบบแล้ว แต่ไม่สามารถ Sync กับ Google Sheets ได้', 'warning');
+                updateDashboard();
+                showPage('assets');
             }
         }
 
@@ -3711,7 +3718,7 @@
             showLoading();
             
             const reader = new FileReader();
-            reader.onload = function(e) {
+            reader.onload = async function(e) {
                 try {
                     const data = new Uint8Array(e.target.result);
                     const workbook = XLSX.read(data, { type: 'array' });
@@ -3750,6 +3757,7 @@
                             serial: row['Serial Number'] || row['serial'] || '',
                             purchaseDate: row['วันที่ซื้อ'] || row['purchaseDate'] || '',
                             price: parseFloat(row['ราคาซื้อ'] || row['price'] || 0),
+                            quantity: parseInt(row['จำนวน'] || row['quantity'] || 1),
                             location: row['สถานที่เก็บ'] || row['location'] || '',
                             department: row['แผนก'] || row['department'] || '',
                             status: row['สถานะ'] || row['status'] || 'สมบูรณ์',
@@ -3761,11 +3769,21 @@
                         addedCount++;
                     });
                     
+                    // 🔥 บันทึกลง Google Sheets
+                    if (addedCount > 0) {
+                        try {
+                            await saveToGoogleSheets();
+                            showNotification(`✅ Import และบันทึกลง Google Sheets สำเร็จ! เพิ่ม ${addedCount} รายการ${skippedCount > 0 ? `, ข้าม ${skippedCount} รายการ` : ''}`, 'success');
+                        } catch (error) {
+                            console.error('Error saving to Google Sheets:', error);
+                            showNotification(`⚠️ Import สำเร็จ ${addedCount} รายการ แต่ไม่สามารถบันทึกลง Google Sheets ได้`, 'warning');
+                        }
+                    } else {
+                        showNotification(`⚠️ ไม่มีข้อมูลใหม่ที่จะเพิ่ม${skippedCount > 0 ? ` (ข้าม ${skippedCount} รายการซ้ำ)` : ''}`, 'warning');
+                    }
                     
                     hideLoading();
                     hideImportSection();
-                    
-                    showNotification(`✅ Import สำเร็จ! เพิ่ม ${addedCount} รายการ${skippedCount > 0 ? `, ข้าม ${skippedCount} รายการ` : ''}`, 'success');
                     
                     renderAssetsTable();
                     updateDashboard();
@@ -6004,6 +6022,47 @@
             } catch (error) {
                 hideLoading();
                 showNotification('❌ เกิดข้อผิดพลาด: ' + error.message, 'error');
+            }
+        }
+
+        // 💾 Save Data to Google Sheets via Apps Script
+        async function saveToGoogleSheets() {
+            const webAppUrl = sheetsConfig.webAppUrl || GOOGLE_APPS_SCRIPT_URL;
+            
+            if (!webAppUrl) {
+                throw new Error('กรุณาตั้งค่า Web App URL ในหน้าตั้งค่าระบบ');
+            }
+            
+            try {
+                const response = await fetch(webAppUrl, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({
+                        action: 'saveAssets',
+                        data: {
+                            assets: assetsData
+                        }
+                    })
+                });
+                
+                if (!response.ok) {
+                    throw new Error('ไม่สามารถบันทึกข้อมูลได้');
+                }
+                
+                const result = await response.json();
+                
+                if (!result.success) {
+                    throw new Error(result.error || 'เกิดข้อผิดพลาดในการบันทึก');
+                }
+                
+                console.log('✅ บันทึกลง Google Sheets สำเร็จ:', result);
+                return result;
+                
+            } catch (error) {
+                console.error('❌ Error saving to Google Sheets:', error);
+                throw error;
             }
         }
 
