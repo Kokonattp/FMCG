@@ -2230,11 +2230,34 @@
                     <i class="fas fa-database"></i> การเชื่อมต่อ Google Sheets
                 </h2>
                 
+                <div class="config-box" style="background: #fff3cd; border-left: 4px solid #ffc107; padding: 20px; border-radius: 10px; margin-bottom: 30px;">
+                    <h3 style="color: #856404; margin-bottom: 10px;">
+                        <i class="fas fa-lightbulb"></i> วิธีใช้งานแบบถาวร (แนะนำ!)
+                    </h3>
+                    <p style="color: #666; line-height: 1.8; margin-bottom: 15px;">
+                        <strong>แทนที่จะตั้งค่าที่นี่</strong> (ต้องตั้งใหม่ทุกครั้งที่เปลี่ยนเครื่อง) 
+                        → ควร <strong>Hard-code</strong> ค่าลงในไฟล์ HTML ตรงๆ
+                    </p>
+                    <div style="background: white; padding: 15px; border-radius: 8px; font-family: monospace; font-size: 13px; color: #d63384; border: 1px solid #dee2e6;">
+                        <strong>เปิดไฟล์ HTML → หาบรรทัดประมาณ 2845-2850 → แก้ไข:</strong><br><br>
+                        <code style="color: #0d6efd;">GOOGLE_APPS_SCRIPT_URL</code> = '<span style="color: #198754;">ใส่ URL ของคุณ</span>';<br>
+                        <code style="color: #0d6efd;">SHEETS_API_KEY</code> = '<span style="color: #198754;">ใส่ API Key ของคุณ</span>';
+                    </div>
+                    <p style="color: #666; margin-top: 15px; font-size: 14px;">
+                        ✅ ใช้ได้ทุกเครื่อง ทุก Browser<br>
+                        ✅ ไม่ต้องตั้งค่าซ้ำ<br>
+                        ✅ แชร์ไฟล์ให้ทีมใช้ได้เลย
+                    </p>
+                </div>
+                
                 <div class="config-box" style="background: #e0f2fe; border-left: 4px solid #0284c7; padding: 20px; border-radius: 10px; margin-bottom: 30px;">
                     <h3 style="color: #0284c7; margin-bottom: 10px;">
-                        <i class="fas fa-info-circle"></i> คำแนะนำการตั้งค่า
+                        <i class="fas fa-info-circle"></i> หรือตั้งค่าแบบชั่วคราว (เก็บใน Browser)
                     </h3>
-                    <ol style="color: #666; line-height: 1.8; padding-left: 20px;">
+                    <p style="color: #666; line-height: 1.6; margin-bottom: 10px;">
+                        ตั้งค่าด้านล่างนี้จะบันทึกใน <strong>Browser ปัจจุบันเท่านั้น</strong>
+                    </p>
+                    <ol style="color: #666; line-height: 1.8; padding-left: 20px; font-size: 14px;">
                         <li><strong>Google Sheets API Key:</strong> สร้างจาก Google Cloud Console → APIs & Services → Credentials</li>
                         <li><strong>Apps Script URL:</strong> Deploy Apps Script เป็น Web app แล้วคัดลอก URL มา</li>
                         <li><strong>Spreadsheet ID:</strong> คัดลอกจาก URL ของ Google Sheets (ระหว่าง /d/ และ /edit)</li>
@@ -2849,27 +2872,40 @@
         // 🔧 CONFIGURATION - ตั้งค่าระบบ
         // ========================================
         
-        // ⚠️ ตั้งค่าเริ่มต้น (สามารถแก้ไขได้ที่หน้าตั้งค่า)
-        let GOOGLE_APPS_SCRIPT_URL = '';
+        // ⭐ ค่า Default (Hard-coded) - แก้ไขตรงนี้ให้ตรงกับของคุณ
+        // ใส่ค่าจริงตรงนี้แล้วระบบจะใช้งานได้ทันทีบนทุกเครื่อง ทุก Browser
+        let GOOGLE_APPS_SCRIPT_URL = ''; // ⚠️ ใส่ Apps Script URL ของคุณตรงนี้
+        let SHEETS_API_KEY = ''; // ⚠️ ใส่ Google Sheets API Key ของคุณตรงนี้
+        let SPREADSHEET_ID = '1o_Wpre0DNfh5XNIEiWR-8uI3zCDaYxCysI5utuDDkBI'; // ✅ ตั้งไว้แล้ว
         let USE_SHEETS_API = true;
-        let SHEETS_API_KEY = '';
-        let SPREADSHEET_ID = '1o_Wpre0DNfh5XNIEiWR-8uI3zCDaYxCysI5utuDDkBI';
         let SHEET_NAME = 'Assets';
         
-        // โหลดการตั้งค่าจาก localStorage
+        // 📝 ตัวอย่างการใส่ค่า:
+        // GOOGLE_APPS_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycby.../exec';
+        // SHEETS_API_KEY = 'AIzaSyBcDeFgHiJkLmNoPqRsTuVwXyZ1234567890';
+        
+        // โหลดการตั้งค่าจาก localStorage (ถ้ามีการแก้ไขในหน้าตั้งค่า)
         function loadConfig() {
             const savedConfig = localStorage.getItem('fmcg_config');
             if (savedConfig) {
-                const config = JSON.parse(savedConfig);
-                GOOGLE_APPS_SCRIPT_URL = config.appsScriptUrl || '';
-                SHEETS_API_KEY = config.apiKey || '';
-                SPREADSHEET_ID = config.spreadsheetId || '1o_Wpre0DNfh5XNIEiWR-8uI3zCDaYxCysI5utuDDkBI';
-                USE_SHEETS_API = config.useApi !== false;
-                
-                // อัพเดท sheetsConfig
-                sheetsConfig.webAppUrl = GOOGLE_APPS_SCRIPT_URL;
-                
-                console.log('✅ โหลดการตั้งค่าสำเร็จ');
+                try {
+                    const config = JSON.parse(savedConfig);
+                    
+                    // ใช้ค่าจาก localStorage ถ้ามี มิฉะนั้นใช้ค่า default
+                    GOOGLE_APPS_SCRIPT_URL = config.appsScriptUrl || GOOGLE_APPS_SCRIPT_URL;
+                    SHEETS_API_KEY = config.apiKey || SHEETS_API_KEY;
+                    SPREADSHEET_ID = config.spreadsheetId || SPREADSHEET_ID;
+                    USE_SHEETS_API = config.useApi !== false;
+                    
+                    // อัพเดท sheetsConfig
+                    sheetsConfig.webAppUrl = GOOGLE_APPS_SCRIPT_URL;
+                    
+                    console.log('✅ โหลดการตั้งค่าจาก localStorage');
+                } catch (error) {
+                    console.warn('⚠️ ไม่สามารถโหลด config จาก localStorage:', error);
+                }
+            } else {
+                console.log('ℹ️ ใช้การตั้งค่า default (hard-coded)');
             }
         }
         
@@ -6688,7 +6724,8 @@
                 countedBy: null
             }));
 
-            // บันทึกลง localStorage
+            // 💾 บันทึกลง Google Sheets (ถ้าต้องการ)
+            // Note: Stock Count จะบันทึกเมื่อ submit เท่านั้น
 
             hideLoading();
             updateStockCountPage();
@@ -6697,14 +6734,8 @@
 
         // Update Stock Count Page
         function updateStockCountPage() {
-            // โหลดข้อมูลจาก localStorage
-            
-            if (savedStock) {
-                stockCountData = JSON.parse(savedStock);
-            }
-            if (savedSession) {
-                currentStockSession = JSON.parse(savedSession);
-            }
+            // ใช้ข้อมูลจาก memory (stockCountData, currentStockSession)
+            // ไม่ใช้ localStorage
 
             // คำนวณสถิติ
             const totalItems = stockCountData.length;
@@ -6977,6 +7008,9 @@
         window.addEventListener('load', async function() {
             console.log('🚀 กำลังเริ่มต้นระบบ...');
             
+            // 🧹 ล้าง localStorage เก่าออก (ยกเว้น config)
+            clearOldLocalStorage();
+            
             // โหลดการตั้งค่าจาก localStorage
             loadConfig();
             
@@ -7019,6 +7053,29 @@
                 updateStockCountPage(); // เพิ่มการโหลด Stock Count
             }
         });
+
+        // 🧹 ล้าง localStorage เก่าออก (ยกเว้น config)
+        function clearOldLocalStorage() {
+            const keysToRemove = [];
+            
+            // หา keys ทั้งหมดที่ไม่ใช่ fmcg_config
+            for (let i = 0; i < localStorage.length; i++) {
+                const key = localStorage.key(i);
+                if (key && key !== 'fmcg_config') {
+                    keysToRemove.push(key);
+                }
+            }
+            
+            // ลบ keys ทั้งหมด
+            keysToRemove.forEach(key => {
+                localStorage.removeItem(key);
+                console.log('🧹 ลบ localStorage:', key);
+            });
+            
+            if (keysToRemove.length > 0) {
+                console.log(`✅ ล้าง localStorage เก่าออก ${keysToRemove.length} รายการ`);
+            }
+        }
 
         // Close modal on outside click
         window.onclick = function(event) {
