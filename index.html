@@ -2250,7 +2250,7 @@
 
                     <div class="form-group full-width">
                         <label>Google Apps Script Web App URL <span class="required">*</span></label>
-                        <input type="text" id="webAppUrl" placeholder="https://script.google.com/macros/s/AKfycbzoxLwmjTcQ5MiupsL3Vm5bdbm8igDNVbbq8yuTWn-23Uf3Svpdq5eEOKhPvvSNLLXmhA/exec">
+                        <input type="text" id="webAppUrl" placeholder="https://script.google.com/macros/s/AKfycbybpd5ccrb1XqMPUEcuCT_-dlX__dHCjTY3MvlfdAPC6LoUs4H_RUBWJyGzQFO0sR-dFg/exec">
                         <small style="color: #666; margin-top: 5px; display: block;">
                             <i class="fas fa-code"></i> 
                             Apps Script URL สำหรับบันทึกข้อมูล
@@ -3327,56 +3327,91 @@
 
         // Save New Asset
         async function saveNewAsset() {
-            const code = document.getElementById('newAssetCode').value;
-            const name = document.getElementById('newAssetName').value;
+            const code = document.getElementById('newAssetCode').value.trim();
+            const name = document.getElementById('newAssetName').value.trim();
             const category = document.getElementById('newCategory').value;
-            const brand = document.getElementById('newBrand').value;
-            const model = document.getElementById('newModel').value;
-            const serial = document.getElementById('newSerial').value;
+            const brand = document.getElementById('newBrand').value.trim();
+            const model = document.getElementById('newModel').value.trim();
+            const serial = document.getElementById('newSerial').value.trim();
             const purchaseDate = document.getElementById('newPurchaseDate').value;
             const price = document.getElementById('newPrice').value;
             const quantity = parseInt(document.getElementById('newQuantity').value) || 1;
             const location = document.getElementById('newLocation').value;
             const department = document.getElementById('newDepartment').value;
             const status = document.getElementById('newStatus').value;
-            const description = document.getElementById('newDescription').value;
+            const description = document.getElementById('newDescription').value.trim();
             
+            // Validate required fields
             if (!code || !name || !category || !purchaseDate || !price || !location) {
                 showNotification('กรุณากรอกข้อมูลที่จำเป็น (*)', 'error');
                 return;
             }
             
-            // ตรวจสอบรหัสซ้ำ
-            if (assetsData.find(a => a.code === code)) {
-                showNotification('❌ รหัสทรัพย์สินซ้ำ กรุณาใช้รหัสอื่น', 'error');
-                return;
-            }
-            
-            const asset = {
-                id: code, // ใช้ code เป็น unique ID
-                code, name, category, brand, model, serial,
-                purchaseDate, price, quantity, location, department, status, description,
-                createdAt: new Date().toISOString()
-            };
-            
             showLoading();
             
             try {
-                // เพิ่มเข้า array
-                assetsData.push(asset);
+                // ✅ 1. โหลดข้อมูลล่าสุดจาก Google Sheets ก่อนเช็คซ้ำ
+                console.log('📥 กำลังโหลดข้อมูลล่าสุดจาก Google Sheets...');
+                await loadFromGoogleSheets();
+                console.log('✅ โหลดข้อมูลล่าสุดสำเร็จ:', assetsData.length, 'รายการ');
                 
-                // 📝 บันทึกประวัติการสร้างทรัพย์สินใหม่
+                // ✅ 2. ตรวจสอบรหัสทรัพย์สินซ้ำกับข้อมูลล่าสุด
+                const existingAsset = assetsData.find(a => a.code === code);
+                if (existingAsset) {
+                    hideLoading();
+                    showNotification('❌ รหัสทรัพย์สินซ้ำกับข้อมูลที่มีอยู่แล้ว: ' + code, 'error');
+                    return;
+                }
+                
+                // ✅ 3. ตรวจสอบ Serial Number ซ้ำ (ถ้ามีการกรอก)
+                if (serial && serial !== '') {
+                    const existingSerial = assetsData.find(a => 
+                        a.serial && a.serial.trim() === serial
+                    );
+                    if (existingSerial) {
+                        hideLoading();
+                        showNotification('❌ Serial Number ซ้ำกับทรัพย์สิน: ' + existingSerial.code + ' (' + existingSerial.name + ')', 'error');
+                        return;
+                    }
+                }
+                
+                // ✅ 4. สร้าง Asset Object
+                const asset = {
+                    id: code, // ใช้ code เป็น unique ID
+                    code, 
+                    name, 
+                    category, 
+                    brand, 
+                    model, 
+                    serial,
+                    purchaseDate, 
+                    price, 
+                    quantity, 
+                    location, 
+                    department, 
+                    status, 
+                    description,
+                    createdAt: formatThaiDateTime(new Date()) // ใช้รูปแบบวันที่ไทย
+                };
+                
+                // ✅ 5. เพิ่มเข้า array
+                assetsData.push(asset);
+                console.log('✅ เพิ่มข้อมูลใหม่:', asset.code);
+                
+                // ✅ 6. บันทึกประวัติการสร้างทรัพย์สินใหม่
                 if (typeof logAssetCreation === 'function') {
                     logAssetCreation(asset);
                 }
                 
-                // 💾 บันทึกลง Google Sheets
+                // ✅ 7. บันทึกลง Google Sheets
+                console.log('📤 กำลังบันทึกลง Google Sheets...');
                 await saveToGoogleSheets();
+                console.log('✅ บันทึกลง Google Sheets สำเร็จ!');
                 
                 hideLoading();
                 showNotification('✅ บันทึกทรัพย์สินสำเร็จและ Sync กับ Google Sheets แล้ว!', 'success');
                 
-                // Clear form
+                // ✅ 8. Clear form
                 document.getElementById('newAssetCode').value = '';
                 document.getElementById('newAssetName').value = '';
                 document.getElementById('newBrand').value = '';
@@ -3384,14 +3419,22 @@
                 document.getElementById('newSerial').value = '';
                 document.getElementById('newDescription').value = '';
                 
+                // ✅ 9. Update UI
                 updateDashboard();
                 showPage('assets');
+                
             } catch (error) {
                 hideLoading();
-                console.error('Save error:', error);
-                showNotification('⚠️ บันทึกในระบบแล้ว แต่ไม่สามารถ Sync กับ Google Sheets ได้', 'warning');
-                updateDashboard();
-                showPage('assets');
+                console.error('❌ Save error:', error);
+                
+                // Rollback: ลบข้อมูลที่เพิ่มไปแล้วออกจาก array
+                const index = assetsData.findIndex(a => a.code === code);
+                if (index > -1) {
+                    assetsData.splice(index, 1);
+                    console.log('🔄 Rollback: ลบข้อมูลออกจาก array');
+                }
+                
+                showNotification('❌ เกิดข้อผิดพลาด: ' + error.message, 'error');
             }
         }
 
@@ -5112,63 +5155,35 @@
 
         // Load custom locations
         async function loadCustomLocations() {
-            // ✅ โหลดสถานที่จาก Google Sheets Locations Sheet
-            try {
-                const webAppUrl = sheetsConfig.webAppUrl || GOOGLE_APPS_SCRIPT_URL;
-                if (!webAppUrl) return;
+            const response = await fetch(webAppUrl + '?action=getLocations');
+            const result = await response.json();
+            
+            if (result.success && result.data && Array.isArray(result.data)) {
+                // ✅ ใช้ชื่อคอลัมน์จริงจาก Locations Sheet
+                customLocations = result.data.map(row => ({
+                    name: row['ชื่อสถานที่'] || '',           // ✅ ตรงกับชีท
+                    capacity: parseInt(row['ความจุสูงสุด']) || 0,  // ✅ ตรงกับชีท
+                    count: parseInt(row['จำนวนทรัพย์สิน']) || 0,   // ✅ ตรงกับชีท
+                    custom: row['กำหนดเอง'] === 'ใช่',              // ✅ ตรงกับชีท
+                    updatedAt: row['อัพเดทล่าสุด'] || ''          // ✅ ตรงกับชีท
+                })).filter(loc => loc.name && loc.name.trim() !== '');
                 
-                const response = await fetch(webAppUrl + '?action=getLocations');
-                if (!response.ok) {
-                    console.warn('⚠️ ไม่สามารถโหลด Locations จาก Sheets');
-                    return;
-                }
-                
-                const result = await response.json();
-                if (result.success && result.data) {
-                    // แปลงข้อมูลจาก Sheets
-                    customLocations = result.data.map(row => ({
-                        name: row['ชื่อสถานที่'] || row[0],
-                        capacity: row['ความจุสูงสุด'] || row[1] || 0,
-                        count: row['จำนวนทรัพย์สิน'] || row[2] || 0,
-                        custom: row['กำหนดเอง'] === 'ใช่' || row[3] === 'ใช่'
-                    })).filter(loc => loc.name);
-                    
-                    console.log('✅ โหลด Locations จาก Sheets:', customLocations.length, 'รายการ');
-                } else {
-                    console.warn('⚠️ ไม่พบข้อมูล Locations ใน Sheets');
-                    customLocations = [];
-                }
-            } catch (error) {
-                console.error('❌ Error loading locations:', error);
-                customLocations = [];
+                console.log('✅ โหลด Locations สำเร็จ:', customLocations.length, 'รายการ');
             }
         }
 
         // Get all locations (from Sheets only - no hardcoded defaults)
         function getAllLocations() {
-            // ✅ ดึงสถานที่จาก Locations Sheet และทรัพย์สินที่มีอยู่เท่านั้น
-            // ไม่ใช้ค่า default ที่ hardcode ไว้
-            
-            // เพิ่มสถานที่จากทรัพย์สินที่มีอยู่
-            const locationsFromAssets = [...new Set(assetsData.map(a => a.location).filter(Boolean))];
-            
-            // รวมกับ custom locations จาก Locations Sheet (ถ้ามี)
-            let customLocs = [];
-            try {
-                if (typeof customLocations !== 'undefined' && Array.isArray(customLocations)) {
-                    customLocs = customLocations.map(l => l.name || l).filter(Boolean);
-                }
-            } catch (error) {
-                console.warn('⚠️ customLocations error:', error);
+            // ✅ ดึงจาก Locations Sheet อย่างเดียว
+            if (!Array.isArray(customLocations)) {
+                return [];
             }
             
-            // รวมทั้งหมดและเอาที่ซ้ำออก (ไม่มี default locations)
-            const allLocations = [...new Set([...locationsFromAssets, ...customLocs])];
+            const locations = customLocations
+                .map(loc => loc.name)
+                .filter(name => name && name.trim() !== '');
             
-            // คืน array ที่เรียงลำดับ หรือ array ว่างถ้าไม่มีข้อมูล
-            return allLocations.length > 0 
-                ? allLocations.sort((a, b) => a.localeCompare(b, 'th')) 
-                : []; // คืน array ว่างถ้าไม่มีสถานที่เลย
+            return locations.sort((a, b) => a.localeCompare(b, 'th'));
         }
 
         // Update location dropdowns
@@ -5214,68 +5229,38 @@
         // Save New Location
         async function saveNewLocation() {
             const name = document.getElementById('newLocationName').value.trim();
-            const capacity = document.getElementById('newLocationCapacity').value;
-            const description = document.getElementById('newLocationDescription').value.trim();
-
-            if (!name) {
-                showNotification('⚠️ กรุณากรอกชื่อสถานที่', 'warning');
-                return;
-            }
-
-            // ตรวจสอบว่าชื่อซ้ำหรือไม่
+            const capacity = document.getElementById('newLocationCapacity').value.trim();
+            
+            // 1. โหลดข้อมูลล่าสุดก่อน
+            await loadCustomLocations();
+            
+            // 2. เช็คชื่อซ้ำ
             const allLocations = getAllLocations();
             if (allLocations.includes(name)) {
-                showNotification('⚠️ ชื่อสถานที่นี้มีอยู่แล้ว กรุณาใช้ชื่ออื่น', 'warning');
+                showNotification('⚠️ ชื่อสถานที่นี้มีอยู่แล้ว', 'warning');
                 return;
             }
-
-            showLoading();
-
-            try {
-                console.log('📍 กำลังเพิ่มสถานที่:', name);
-                
-                // เพิ่มสถานที่ใหม่
-                const newLocation = {
-                    id: 'LOC-' + new Date().getTime(),
-                    name: name,
-                    description: description,
-                    createdAt: formatThaiDateTime(new Date())
-                };
-
-                customLocations.push(newLocation);
-
-                // ถ้ามีความจุ ให้บันทึกด้วย
-                if (capacity && parseInt(capacity) > 0) {
-                    locationCapacity[name] = parseInt(capacity);
-                }
-
-                // 🔥 บันทึกลง Google Sheets ทันที (ข้อ 5)
-                await saveLocationToSheets(name, capacity || 0, { custom: true });
-                console.log('✅ บันทึกสถานที่ลง Google Sheets สำเร็จ');
-
-                // 🔄 โหลดสถานที่ใหม่จาก Google Sheets (ข้อ 6)
-                await loadCustomLocations();
-                console.log('✅ โหลดสถานที่จาก Google Sheets สำเร็จ');
-
-                hideLoading();
-                closeModal('addLocationModal');
-                
-                // อัพเดท UI
-                updateLocationDropdowns();
-                updateLocationsPage();
-                
-                showNotification(`✅ เพิ่มสถานที่ "${name}" สำเร็จ!`, 'success');
-                
-                // Clear form
-                document.getElementById('newLocationName').value = '';
-                document.getElementById('newLocationCapacity').value = '';
-                document.getElementById('newLocationDescription').value = '';
-                
-            } catch (error) {
-                hideLoading();
-                console.error('❌ เกิดข้อผิดพลาด:', error);
-                showNotification('❌ เกิดข้อผิดพลาดในการบันทึก: ' + error.message, 'error');
-            }
+            
+            // 3. ส่งข้อมูลไป Google Apps Script
+            const response = await fetch(webAppUrl, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    action: 'saveLocation',
+                    data: {                    // ✅ ใส่ใน data object
+                        location: name,
+                        capacity: parseInt(capacity) || 0,
+                        custom: true
+                    }
+                })
+            });
+            
+            // 4. โหลดข้อมูลใหม่
+            await loadCustomLocations();
+            
+            // 5. อัปเดท UI
+            updateLocationDropdowns();
+            updateLocationsPage();
         }
 
         // Open Manage Locations Modal
