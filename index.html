@@ -5155,20 +5155,47 @@
 
         // Load custom locations
         async function loadCustomLocations() {
-            const response = await fetch(webAppUrl + '?action=getLocations');
-            const result = await response.json();
-            
-            if (result.success && result.data && Array.isArray(result.data)) {
-                // ✅ ใช้ชื่อคอลัมน์จริงจาก Locations Sheet
-                customLocations = result.data.map(row => ({
-                    name: row['ชื่อสถานที่'] || '',           // ✅ ตรงกับชีท
-                    capacity: parseInt(row['ความจุสูงสุด']) || 0,  // ✅ ตรงกับชีท
-                    count: parseInt(row['จำนวนทรัพย์สิน']) || 0,   // ✅ ตรงกับชีท
-                    custom: row['กำหนดเอง'] === 'ใช่',              // ✅ ตรงกับชีท
-                    updatedAt: row['อัพเดทล่าสุด'] || ''          // ✅ ตรงกับชีท
-                })).filter(loc => loc.name && loc.name.trim() !== '');
+            try {
+                const webAppUrl = sheetsConfig.webAppUrl || GOOGLE_APPS_SCRIPT_URL;
                 
-                console.log('✅ โหลด Locations สำเร็จ:', customLocations.length, 'รายการ');
+                if (!webAppUrl) {
+                    console.warn('⚠️ ไม่มี Web App URL');
+                    customLocations = [];
+                    return;
+                }
+                
+                console.log('📥 กำลังโหลด Locations จาก:', webAppUrl);
+                
+                const response = await fetch(webAppUrl + '?action=getLocations');
+                
+                if (!response.ok) {
+                    console.warn('⚠️ ไม่สามารถโหลด Locations:', response.status);
+                    customLocations = [];
+                    return;
+                }
+                
+                const result = await response.json();
+                console.log('📥 Locations response:', result);
+                
+                if (result.success && result.data && Array.isArray(result.data)) {
+                    // ✅ ใช้ชื่อคอลัมน์จริงจาก Locations Sheet
+                    customLocations = result.data.map(row => ({
+                        name: row['ชื่อสถานที่'] || '',
+                        capacity: parseInt(row['ความจุสูงสุด']) || 0,
+                        count: parseInt(row['จำนวนทรัพย์สิน']) || 0,
+                        custom: row['กำหนดเอง'] === 'ใช่',
+                        updatedAt: row['อัพเดทล่าสุด'] || ''
+                    })).filter(loc => loc.name && loc.name.trim() !== '');
+                    
+                    console.log('✅ โหลด Locations สำเร็จ:', customLocations.length, 'รายการ');
+                    console.log('📋 Locations:', customLocations);
+                } else {
+                    console.warn('⚠️ ไม่พบข้อมูล Locations');
+                    customLocations = [];
+                }
+            } catch (error) {
+                console.error('❌ Error loading locations:', error);
+                customLocations = [];
             }
         }
 
@@ -5230,37 +5257,87 @@
         async function saveNewLocation() {
             const name = document.getElementById('newLocationName').value.trim();
             const capacity = document.getElementById('newLocationCapacity').value.trim();
+            const description = document.getElementById('newLocationDescription').value.trim();
             
-            // 1. โหลดข้อมูลล่าสุดก่อน
-            await loadCustomLocations();
-            
-            // 2. เช็คชื่อซ้ำ
-            const allLocations = getAllLocations();
-            if (allLocations.includes(name)) {
-                showNotification('⚠️ ชื่อสถานที่นี้มีอยู่แล้ว', 'warning');
+            // Validate
+            if (!name || name === '') {
+                showNotification('⚠️ กรุณากรอกชื่อสถานที่', 'warning');
                 return;
             }
             
-            // 3. ส่งข้อมูลไป Google Apps Script
-            const response = await fetch(webAppUrl, {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({
-                    action: 'saveLocation',
-                    data: {                    // ✅ ใส่ใน data object
-                        location: name,
-                        capacity: parseInt(capacity) || 0,
-                        custom: true
-                    }
-                })
-            });
+            showLoading();
             
-            // 4. โหลดข้อมูลใหม่
-            await loadCustomLocations();
-            
-            // 5. อัปเดท UI
-            updateLocationDropdowns();
-            updateLocationsPage();
+            try {
+                const webAppUrl = sheetsConfig.webAppUrl || GOOGLE_APPS_SCRIPT_URL;
+                
+                if (!webAppUrl) {
+                    throw new Error('กรุณาตั้งค่า Web App URL ในหน้าตั้งค่า');
+                }
+                
+                // 1. โหลดข้อมูลล่าสุดก่อน
+                console.log('📥 กำลังโหลดสถานที่ล่าสุด...');
+                await loadCustomLocations();
+                
+                // 2. เช็คชื่อซ้ำ
+                const allLocations = getAllLocations();
+                console.log('📋 Existing locations:', allLocations);
+                
+                if (allLocations.includes(name)) {
+                    hideLoading();
+                    showNotification('⚠️ ชื่อสถานที่นี้มีอยู่แล้ว: ' + name, 'warning');
+                    return;
+                }
+                
+                // 3. ส่งข้อมูลไป Google Apps Script
+                console.log('📤 กำลังบันทึกสถานที่:', { name, capacity });
+                
+                const response = await fetch(webAppUrl, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        action: 'saveLocation',
+                        data: {
+                            location: name,
+                            capacity: parseInt(capacity) || 0,
+                            custom: true
+                        }
+                    })
+                });
+                
+                if (!response.ok) {
+                    throw new Error('HTTP Error: ' + response.status);
+                }
+                
+                const result = await response.json();
+                console.log('📥 Save result:', result);
+                
+                if (!result.success) {
+                    throw new Error(result.error || 'ไม่สามารถบันทึกสถานที่ได้');
+                }
+                
+                // 4. โหลดข้อมูลใหม่
+                console.log('🔄 กำลังโหลดข้อมูลใหม่...');
+                await loadCustomLocations();
+                
+                hideLoading();
+                closeModal('addLocationModal');
+                
+                // 5. อัปเดท UI
+                updateLocationDropdowns();
+                updateLocationsPage();
+                
+                showNotification(`✅ เพิ่มสถานที่ "${name}" สำเร็จ!`, 'success');
+                
+                // 6. Clear form
+                document.getElementById('newLocationName').value = '';
+                document.getElementById('newLocationCapacity').value = '';
+                document.getElementById('newLocationDescription').value = '';
+                
+            } catch (error) {
+                hideLoading();
+                console.error('❌ เกิดข้อผิดพลาด:', error);
+                showNotification('❌ เกิดข้อผิดพลาด: ' + error.message, 'error');
+            }
         }
 
         // Open Manage Locations Modal
