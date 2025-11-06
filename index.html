@@ -1658,7 +1658,7 @@
         // ========================================
 
         // 🔧 URL ที่ได้จากการ Deploy Web App
-        let webAppUrl = 'https://script.google.com/macros/s/AKfycbzta9Rzcxf8_qoNKqUcTF-3T2nABQysnkuiSUyGQdjuWI9DKHJBoTrHWCRNVcIQVloXfg/exec';
+        let webAppUrl = 'https://script.google.com/macros/s/AKfycbxLnS7izP8Rj3m-i7DSK561rvDGkDb-HsVJ3b2IwqOwLSC32uZ1LV5D35f5AETOmENLNw/exec';
 
         let assetsData = [];
         let locationsData = [];
@@ -1825,10 +1825,16 @@
 
         async function loadLocations() {
             try {
-                const response = await fetch(webAppUrl + '?action=getLocations');
-                const result = await response.json();
+                console.log('🔍 Fetching locations from:', webAppUrl + '?action=getLocations');
                 
+                const response = await fetch(webAppUrl + '?action=getLocations');
+                console.log('📡 Response Status:', response.status, response.statusText);
+                
+                const result = await response.json();
                 console.log('📍 Locations Response:', result);
+                console.log('📍 Result.success:', result.success);
+                console.log('📍 Result.data type:', typeof result.data);
+                console.log('📍 Result.data:', result.data);
                 
                 if (result.success) {
                     // ตรวจสอบว่า data เป็น array หรือไม่
@@ -1836,24 +1842,32 @@
                         locationsData = result.data;
                         filteredLocations = [...locationsData];
                         console.log('✅ Loaded', locationsData.length, 'locations');
+                        console.log('✅ Locations Data:', locationsData);
                         updateLocationDropdowns();
+                        renderLocations(); // เรียก render ทันทีหลังโหลดสำเร็จ
                     } else {
                         // ถ้าไม่ใช่ array ให้ใช้ค่าเริ่มต้นเป็น array ว่าง
                         locationsData = [];
                         filteredLocations = [];
                         console.log('⚠️ Locations data is not an array, using empty array');
+                        console.log('⚠️ Actual data:', result.data);
+                        renderLocations(); // render เพื่อแสดง empty state
                     }
                 } else {
                     // กรณี success = false ให้ใช้ค่าเริ่มต้น
                     locationsData = [];
                     filteredLocations = [];
                     console.log('⚠️ API returned success=false:', result.message);
+                    console.log('⚠️ Full result:', result);
+                    renderLocations(); // render เพื่อแสดง empty state
                 }
             } catch (error) {
                 console.error('❌ Error loading locations:', error);
+                console.error('❌ Error details:', error.stack);
                 // กรณี error ให้ใช้ค่าเริ่มต้นเป็น array ว่าง
                 locationsData = [];
                 filteredLocations = [];
+                renderLocations(); // render เพื่อแสดง empty state
                 showNotification('⚠️ ไม่สามารถโหลดข้อมูลสถานที่ได้: ' + error.message, 'warning');
             }
         }
