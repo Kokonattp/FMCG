@@ -614,6 +614,21 @@
             100% { transform: rotate(360deg); }
         }
 
+        /* Font Awesome spin animation */
+        .fa-spin {
+            animation: spin 1s linear infinite !important;
+        }
+
+        /* Refresh button hover effect */
+        .btn-secondary:hover .fa-sync-alt:not(.fa-spin) {
+            transform: rotate(180deg);
+            transition: transform 0.3s ease;
+        }
+
+        .btn .fa-sync-alt {
+            transition: transform 0.3s ease;
+        }
+
         /* Notification */
         .notification {
             position: fixed;
@@ -832,31 +847,6 @@
         .action-btn:hover {
             transform: scale(1.05);
         }
-
-        /* Connection Status */
-        .connection-status {
-            display: inline-flex;
-            align-items: center;
-            gap: 8px;
-            padding: 8px 16px;
-            border-radius: 20px;
-            font-size: 13px;
-            font-weight: 500;
-        }
-
-        .connection-status.connected {
-            background: #d1fae5;
-            color: #065f46;
-        }
-
-        .connection-status.disconnected {
-            background: #fee2e2;
-            color: #991b1b;
-        }
-
-        .connection-status i {
-            font-size: 10px;
-        }
     </style>
 </head>
 <body>
@@ -906,10 +896,6 @@
             <div class="menu-item" onclick="showPage('reports')" data-tooltip="รายงาน">
                 <i class="fas fa-chart-pie"></i>
                 <span>รายงาน</span>
-            </div>
-            <div class="menu-item" onclick="showPage('settings')" data-tooltip="ตั้งค่า">
-                <i class="fas fa-cog"></i>
-                <span>ตั้งค่า</span>
             </div>
         </div>
 
@@ -1018,6 +1004,9 @@
                     จัดการทรัพย์สิน
                 </h1>
                 <div class="header-actions">
+                    <button class="btn btn-secondary" onclick="refreshData()">
+                        <i class="fas fa-sync-alt"></i> รีเฟรช
+                    </button>
                     <button class="btn btn-success" onclick="openImportModal()">
                         <i class="fas fa-file-excel"></i> Import Excel
                     </button>
@@ -1081,6 +1070,9 @@
                     สถานที่เก็บทรัพย์สิน
                 </h1>
                 <div class="header-actions">
+                    <button class="btn btn-secondary" onclick="refreshData()">
+                        <i class="fas fa-sync-alt"></i> รีเฟรช
+                    </button>
                     <button class="btn btn-success" onclick="openLocationModal()">
                         <i class="fas fa-plus"></i> เพิ่มสถานที่
                     </button>
@@ -1360,6 +1352,11 @@
                     <i class="fas fa-chart-pie"></i>
                     รายงานและสถิติ
                 </h1>
+                <div class="header-actions">
+                    <button class="btn btn-secondary" onclick="refreshData()">
+                        <i class="fas fa-sync-alt"></i> รีเฟรช
+                    </button>
+                </div>
             </div>
 
             <!-- Summary Stats -->
@@ -1491,64 +1488,9 @@
         </div>
 
         <!-- ========================================
-             SETTINGS PAGE
+             REPORTS PAGE
              ======================================== -->
-        <div class="page-content" id="settings">
-            <div class="header">
-                <h1>
-                    <i class="fas fa-cog"></i>
-                    ตั้งค่าระบบ
-                </h1>
-            </div>
-
-            <div class="section">
-                <h3><i class="fas fa-link"></i> การเชื่อมต่อ Google Sheets</h3>
-                
-                <div style="margin-bottom: 20px;">
-                    <strong>สถานะการเชื่อมต่อ:</strong>
-                    <span class="connection-status disconnected" id="connectionStatus">
-                        <i class="fas fa-circle"></i> ยังไม่เชื่อมต่อ
-                    </span>
-                </div>
-
-                <div class="form-group" style="margin-bottom: 15px;">
-                    <label>
-                        <i class="fas fa-code"></i> Google Apps Script URL:
-                    </label>
-                    <input type="text" id="webAppUrl" placeholder="https://script.google.com/macros/s/AKfycbwNF-LCY2wTwt2jxFVMmbyhNQ3-OBPCF33CHjZ_0m4y-q8HzwAVpLsyUEJEikqXUn1fYw/exec">
-                </div>
-
-                <div style="display: flex; gap: 10px; flex-wrap: wrap;">
-                    <button class="btn btn-primary" onclick="saveSettings()">
-                        <i class="fas fa-save"></i> บันทึกการตั้งค่า
-                    </button>
-                    <button class="btn btn-success" onclick="testConnection()">
-                        <i class="fas fa-plug"></i> ทดสอบการเชื่อมต่อ
-                    </button>
-                </div>
-            </div>
-
-            <div class="section">
-                <h3><i class="fas fa-info-circle"></i> คู่มือการใช้งาน</h3>
-                <ol style="line-height: 2; padding-left: 20px;">
-                    <li>📝 สร้าง Google Spreadsheet ใหม่</li>
-                    <li>🔧 ไปที่ Extensions > Apps Script</li>
-                    <li>📋 Copy Code จากไฟล์ Code.gs</li>
-                    <li>🚀 Deploy เป็น Web app (Anyone access)</li>
-                    <li>📎 Copy URL มาวางในช่องด้านบน</li>
-                    <li>💾 คลิก "บันทึกการตั้งค่า"</li>
-                    <li>✅ ทดสอบการเชื่อมต่อ</li>
-                </ol>
-            </div>
-        </div>
-    </div>
-
-    <!-- ========================================
-         MODALS
-         ======================================== -->
-    
-    <!-- Asset Modal -->
-    <div class="modal" id="assetModal">
+        <div class="page-content" id="reports">
         <div class="modal-content">
             <div class="modal-header">
                 <h2 id="assetModalTitle">
@@ -1714,13 +1656,18 @@
         // ========================================
         // GLOBAL VARIABLES
         // ========================================
+        
+        // 🔧 ตั้งค่า Web App URL ที่นี่ (Hard Coded)
+        // แทนที่ URL ด้านล่างด้วย Web App URL ของคุณ
+        let webAppUrl = 'https://script.google.com/macros/s/AKfycbzjF-erIA0IA-FcsxpCrGjA_yslaECyfZQ4HbmovUj0qW6CuAd8M_5lcYDEcP37MLFwOA/exec';
+        // ตัวอย่าง: 'https://script.google.com/macros/s/AKfycbx.../exec'
+        
         let assetsData = [];
         let locationsData = [];
         let filteredAssets = [];
         let filteredLocations = [];
         let currentEditingAsset = null;
         let currentEditingLocation = null;
-        let webAppUrl = '';
         let charts = {};
 
         // ========================================
@@ -1728,7 +1675,13 @@
         // ========================================
         window.addEventListener('load', async function() {
             console.log('🚀 Loading system...');
-            loadSettings();
+            console.log('📡 Web App URL:', webAppUrl);
+            
+            if (webAppUrl === 'https://script.google.com/macros/s/AKfycbzjF-erIA0IA-FcsxpCrGjA_yslaECyfZQ4HbmovUj0qW6CuAd8M_5lcYDEcP37MLFwOA/exec') {
+                showNotification('⚠️ กรุณาตั้งค่า Web App URL ในโค้ด JavaScript', 'warning');
+                console.error('❌ Web App URL not configured! Please set webAppUrl in the code.');
+            }
+            
             await loadAllData();
             updateAllPages();
             initCharts();
@@ -1804,83 +1757,38 @@
         }
 
         // ========================================
-        // SETTINGS
-        // ========================================
-        function loadSettings() {
-            const savedUrl = localStorage.getItem('webAppUrl');
-            if (savedUrl) {
-                webAppUrl = savedUrl;
-                document.getElementById('webAppUrl').value = savedUrl;
-                updateConnectionStatus(true);
-            }
-        }
-
-        function saveSettings() {
-            const url = document.getElementById('webAppUrl').value.trim();
-            
-            if (!url) {
-                showNotification('กรุณากรอก Web App URL', 'error');
-                return;
-            }
-
-            localStorage.setItem('webAppUrl', url);
-            webAppUrl = url;
-            updateConnectionStatus(true);
-            showNotification('✅ บันทึกการตั้งค่าสำเร็จ!', 'success');
-        }
-
-        async function testConnection() {
-            if (!webAppUrl) {
-                showNotification('⚠️ กรุณากรอกและบันทึก Web App URL ก่อน', 'warning');
-                return;
-            }
-
-            showLoading();
-            try {
-                const response = await fetch(webAppUrl + '?action=getAssets');
-                const result = await response.json();
-                
-                if (result.success) {
-                    showNotification('✅ เชื่อมต่อสำเร็จ! พบข้อมูล ' + (result.data?.length || 0) + ' รายการ', 'success');
-                    updateConnectionStatus(true);
-                    await loadAllData();
-                    updateAllPages();
-                } else {
-                    showNotification('❌ เชื่อมต่อไม่สำเร็จ: ' + result.message, 'error');
-                    updateConnectionStatus(false);
-                }
-            } catch (error) {
-                console.error('Connection test failed:', error);
-                showNotification('❌ ไม่สามารถเชื่อมต่อได้: ' + error.message, 'error');
-                updateConnectionStatus(false);
-            }
-            hideLoading();
-        }
-
-        function updateConnectionStatus(connected) {
-            const statusEl = document.getElementById('connectionStatus');
-            if (connected) {
-                statusEl.className = 'connection-status connected';
-                statusEl.innerHTML = '<i class="fas fa-circle"></i> เชื่อมต่อแล้ว';
-            } else {
-                statusEl.className = 'connection-status disconnected';
-                statusEl.innerHTML = '<i class="fas fa-circle"></i> ยังไม่เชื่อมต่อ';
-            }
-        }
-
-        // ========================================
         // DATA LOADING
         // ========================================
         async function loadAllData() {
             if (!webAppUrl) {
                 console.log('⚠️ Web App URL not configured');
+                // ตั้งค่าเริ่มต้นเป็น array ว่าง
+                assetsData = [];
+                filteredAssets = [];
+                locationsData = [];
+                filteredLocations = [];
                 return;
             }
 
-            await Promise.all([
-                loadAssets(),
-                loadLocations()
-            ]);
+            console.log('🔄 Loading all data from:', webAppUrl);
+            
+            try {
+                await Promise.all([
+                    loadAssets(),
+                    loadLocations()
+                ]);
+                
+                console.log('✅ All data loaded successfully');
+                console.log('   Assets:', assetsData.length);
+                console.log('   Locations:', locationsData.length);
+            } catch (error) {
+                console.error('❌ Error in loadAllData:', error);
+                // ตั้งค่าเริ่มต้นเป็น array ว่าง
+                assetsData = [];
+                filteredAssets = [];
+                locationsData = [];
+                filteredLocations = [];
+            }
         }
 
         async function loadAssets() {
@@ -1889,14 +1797,32 @@
                 const response = await fetch(webAppUrl + '?action=getAssets');
                 const result = await response.json();
                 
+                console.log('📦 Assets Response:', result);
+                
                 if (result.success) {
-                    assetsData = result.data || [];
-                    filteredAssets = [...assetsData];
-                    console.log('✅ Loaded', assetsData.length, 'assets');
+                    // ตรวจสอบว่า data เป็น array หรือไม่
+                    if (result.data && Array.isArray(result.data)) {
+                        assetsData = result.data;
+                        filteredAssets = [...assetsData];
+                        console.log('✅ Loaded', assetsData.length, 'assets');
+                    } else {
+                        // ถ้าไม่ใช่ array ให้ใช้ค่าเริ่มต้นเป็น array ว่าง
+                        assetsData = [];
+                        filteredAssets = [];
+                        console.log('⚠️ Assets data is not an array, using empty array');
+                    }
+                } else {
+                    // กรณี success = false ให้ใช้ค่าเริ่มต้น
+                    assetsData = [];
+                    filteredAssets = [];
+                    console.log('⚠️ API returned success=false:', result.message);
                 }
             } catch (error) {
-                console.error('Error loading assets:', error);
-                showNotification('⚠️ ไม่สามารถโหลดข้อมูลทรัพย์สินได้', 'warning');
+                console.error('❌ Error loading assets:', error);
+                // กรณี error ให้ใช้ค่าเริ่มต้นเป็น array ว่าง
+                assetsData = [];
+                filteredAssets = [];
+                showNotification('⚠️ ไม่สามารถโหลดข้อมูลทรัพย์สินได้: ' + error.message, 'warning');
             } finally {
                 hideLoading();
             }
@@ -1907,23 +1833,79 @@
                 const response = await fetch(webAppUrl + '?action=getLocations');
                 const result = await response.json();
                 
+                console.log('📍 Locations Response:', result);
+                
                 if (result.success) {
-                    locationsData = result.data || [];
-                    filteredLocations = [...locationsData];
-                    console.log('✅ Loaded', locationsData.length, 'locations');
-                    updateLocationDropdowns();
+                    // ตรวจสอบว่า data เป็น array หรือไม่
+                    if (result.data && Array.isArray(result.data)) {
+                        locationsData = result.data;
+                        filteredLocations = [...locationsData];
+                        console.log('✅ Loaded', locationsData.length, 'locations');
+                        updateLocationDropdowns();
+                    } else {
+                        // ถ้าไม่ใช่ array ให้ใช้ค่าเริ่มต้นเป็น array ว่าง
+                        locationsData = [];
+                        filteredLocations = [];
+                        console.log('⚠️ Locations data is not an array, using empty array');
+                    }
+                } else {
+                    // กรณี success = false ให้ใช้ค่าเริ่มต้น
+                    locationsData = [];
+                    filteredLocations = [];
+                    console.log('⚠️ API returned success=false:', result.message);
                 }
             } catch (error) {
-                console.error('Error loading locations:', error);
-                showNotification('⚠️ ไม่สามารถโหลดข้อมูลสถานที่ได้', 'warning');
+                console.error('❌ Error loading locations:', error);
+                // กรณี error ให้ใช้ค่าเริ่มต้นเป็น array ว่าง
+                locationsData = [];
+                filteredLocations = [];
+                showNotification('⚠️ ไม่สามารถโหลดข้อมูลสถานที่ได้: ' + error.message, 'warning');
             }
         }
 
         async function refreshData() {
-            showNotification('🔄 กำลังโหลดข้อมูลใหม่...', 'success');
-            await loadAllData();
-            updateAllPages();
-            showNotification('✅ โหลดข้อมูลสำเร็จ!', 'success');
+            console.log('🔄 Refreshing all data...');
+            
+            // แสดง loading
+            showLoading();
+            
+            // เพิ่มแอนิเมชั่นหมุนให้ปุ่มรีเฟรชทั้งหมด
+            const refreshButtons = document.querySelectorAll('.btn-secondary .fa-sync-alt');
+            refreshButtons.forEach(btn => {
+                btn.classList.add('fa-spin');
+            });
+            
+            try {
+                // แสดงการแจ้งเตือนว่ากำลังโหลด
+                showNotification('🔄 กำลังโหลดข้อมูลจาก Google Sheets...', 'success');
+                
+                // โหลดข้อมูลใหม่
+                await loadAllData();
+                
+                // อัพเดทหน้าทั้งหมด
+                updateAllPages();
+                
+                // แสดงผลสำเร็จ
+                showNotification('✅ โหลดข้อมูลสำเร็จ! ทรัพย์สิน: ' + assetsData.length + ' | สถานที่: ' + locationsData.length, 'success');
+                
+                console.log('✅ Data refreshed successfully');
+                console.log('   📦 Assets:', assetsData.length);
+                console.log('   📍 Locations:', locationsData.length);
+                
+            } catch (error) {
+                console.error('❌ Error refreshing data:', error);
+                showNotification('❌ เกิดข้อผิดพลาดในการโหลดข้อมูล: ' + error.message, 'error');
+            } finally {
+                // ซ่อน loading
+                hideLoading();
+                
+                // ลบแอนิเมชั่นหมุน
+                setTimeout(() => {
+                    refreshButtons.forEach(btn => {
+                        btn.classList.remove('fa-spin');
+                    });
+                }, 500);
+            }
         }
 
         function updateAllPages() {
@@ -1941,6 +1923,12 @@
         // DASHBOARD
         // ========================================
         function updateDashboard() {
+            // เช็คว่า assetsData เป็น array หรือไม่
+            if (!Array.isArray(assetsData)) {
+                console.error('❌ assetsData is not an array:', assetsData);
+                assetsData = [];
+            }
+
             // Update stats
             document.getElementById('totalAssets').textContent = assetsData.length;
             
@@ -2764,8 +2752,27 @@
         }
 
         function refreshDepartments() {
+            console.log('🔄 Refreshing department data...');
+            
+            // เพิ่มแอนิเมชั่นหมุน
+            const refreshIcon = event.target.querySelector('.fa-sync-alt');
+            if (refreshIcon) {
+                refreshIcon.classList.add('fa-spin');
+            }
+            
+            // อัพเดทข้อมูล
             updateDepartmentPage();
-            showNotification('✅ อัพเดทข้อมูลแผนกสำเร็จ!', 'success');
+            
+            showNotification('✅ อัพเดทข้อมูลแผนกสำเร็จ! แผนกทั้งหมด: ' + document.getElementById('totalDepartments').textContent, 'success');
+            
+            // ลบแอนิเมชั่นหลังจาก 0.5 วินาที
+            setTimeout(() => {
+                if (refreshIcon) {
+                    refreshIcon.classList.remove('fa-spin');
+                }
+            }, 500);
+            
+            console.log('✅ Department data refreshed');
         }
 
         // ========================================
@@ -2825,8 +2832,28 @@
         }
 
         function refreshMaintenance() {
+            console.log('🔄 Refreshing maintenance data...');
+            
+            // เพิ่มแอนิเมชั่นหมุน
+            const refreshIcon = event.target.querySelector('.fa-sync-alt');
+            if (refreshIcon) {
+                refreshIcon.classList.add('fa-spin');
+            }
+            
+            // อัพเดทข้อมูล
             updateMaintenancePage();
-            showNotification('✅ อัพเดทข้อมูลการบำรุงรักษาสำเร็จ!', 'success');
+            
+            const maintenanceCount = document.getElementById('maintenanceCount').textContent;
+            showNotification('✅ อัพเดทข้อมูลการบำรุงรักษาสำเร็จ! รายการซ่อม: ' + maintenanceCount, 'success');
+            
+            // ลบแอนิเมชั่นหลังจาก 0.5 วินาที
+            setTimeout(() => {
+                if (refreshIcon) {
+                    refreshIcon.classList.remove('fa-spin');
+                }
+            }, 500);
+            
+            console.log('✅ Maintenance data refreshed');
         }
 
         // ========================================
