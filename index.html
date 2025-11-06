@@ -1656,12 +1656,10 @@
         // ========================================
         // GLOBAL VARIABLES
         // ========================================
-        
-        // 🔧 ตั้งค่า Web App URL ที่นี่ (Hard Coded)
-        // แทนที่ URL ด้านล่างด้วย Web App URL ของคุณ
-        let webAppUrl = 'https://script.google.com/macros/s/AKfycbzjF-erIA0IA-FcsxpCrGjA_yslaECyfZQ4HbmovUj0qW6CuAd8M_5lcYDEcP37MLFwOA/exec';
-        // ตัวอย่าง: 'https://script.google.com/macros/s/AKfycbx.../exec'
-        
+
+        // 🔧 URL ที่ได้จากการ Deploy Web App
+        let webAppUrl = 'https://script.google.com/macros/s/AKfycbzta9Rzcxf8_qoNKqUcTF-3T2nABQysnkuiSUyGQdjuWI9DKHJBoTrHWCRNVcIQVloXfg/exec';
+
         let assetsData = [];
         let locationsData = [];
         let filteredAssets = [];
@@ -1677,10 +1675,7 @@
             console.log('🚀 Loading system...');
             console.log('📡 Web App URL:', webAppUrl);
             
-            if (webAppUrl === 'https://script.google.com/macros/s/AKfycbzjF-erIA0IA-FcsxpCrGjA_yslaECyfZQ4HbmovUj0qW6CuAd8M_5lcYDEcP37MLFwOA/exec') {
-                showNotification('⚠️ กรุณาตั้งค่า Web App URL ในโค้ด JavaScript', 'warning');
-                console.error('❌ Web App URL not configured! Please set webAppUrl in the code.');
-            }
+            // ลบเงื่อนไขเช็คทิ้ง - ไม่จำเป็นอีกต่อไป
             
             await loadAllData();
             updateAllPages();
