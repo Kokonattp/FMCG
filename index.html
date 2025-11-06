@@ -2515,7 +2515,17 @@
                 document.getElementById('progressFill').style.width = '100%';
 
                 if (result.success) {
-                    showNotification('✅ ' + result.message, 'success');
+                    // 🔥 แสดง errors ถ้ามี
+                    let message = result.message;
+                    
+                    if (result.data && result.data.errors && result.data.errors.length > 0) {
+                        const errorList = result.data.errors.slice(0, 5).join('<br>');
+                        const moreErrors = result.data.errors.length > 5 ? `<br>...และอีก ${result.data.errors.length - 5} รายการ` : '';
+                        
+                        message += '<br><br><strong>รายการที่ข้าม:</strong><br>' + errorList + moreErrors;
+                    }
+                    
+                    showNotification('✅ ' + message, 'success');
                     closeImportModal();
                     await loadAllData();
                     updateAllPages();
@@ -3434,8 +3444,8 @@
             };
             
             content.innerHTML = `
-                <div style="display: flex; align-items: center; gap: 12px;">
-                    <div style="font-size: 24px;">${icons[type] || icons.success}</div>
+                <div style="display: flex; align-items: flex-start; gap: 12px;">
+                    <div style="font-size: 24px; flex-shrink: 0;">${icons[type] || icons.success}</div>
                     <div style="flex: 1;">${message}</div>
                 </div>
             `;
@@ -3444,7 +3454,7 @@
             
             setTimeout(() => {
                 notification.classList.remove('active');
-            }, 4000);
+            }, 6000); // เพิ่มเวลาเป็น 6 วินาทีสำหรับข้อความยาว
         }
 
         // Close modal on outside click
